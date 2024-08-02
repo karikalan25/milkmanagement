@@ -31,7 +31,7 @@ class User extends Authenticatable
     ];
 
     public function breeds(){
-        $this->hasMany(Breed::class);
+        return $this->hasMany(Breed::class);
     }
     /**
      * The attributes that should be hidden for serialization.
@@ -41,7 +41,7 @@ class User extends Authenticatable
     protected $casts = [
         'expires_at' => 'datetime',
     ];
-    
+
     protected $hidden = [
         'password',
         'remember_token',

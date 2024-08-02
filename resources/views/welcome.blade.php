@@ -335,5 +335,44 @@
         </form>
     </fieldset>
     <br><br>
+    <fieldset>
+        <form name="form" method="get" action="http://127.0.0.1:8000/api/user">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">6. Get user details [ User ]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/user</div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Sample</strong></td>
+                            </tr>
+                            <tr>
+                                <td>User id</td>
+                                <td><input type="text" name="user_id" id="user_id"></td>
+                                <td>user_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
 </body>
 </html>
