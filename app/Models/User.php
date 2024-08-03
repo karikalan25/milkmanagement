@@ -33,6 +33,9 @@ class User extends Authenticatable
     public function breeds(){
         return $this->hasMany(Breed::class);
     }
+    public function records(){
+        return $this->hasMany(Record::class);
+    }
     /**
      * The attributes that should be hidden for serialization.
      *

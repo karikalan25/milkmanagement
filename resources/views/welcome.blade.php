@@ -14,6 +14,7 @@
     </style>
 </head>
 <body>
+    {{-- Register API --}}
     <fieldset>
         <form name="form" method="POST" action="http://127.0.0.1:8000/api/register">
             <table border="0" width="100%">
@@ -150,6 +151,7 @@
         </form>
     </fieldset>
     <br><br>
+    {{-- OTP API --}}
     <fieldset>
         <form name="form" method="post" action="http://127.0.0.1:8000/api/otp">
             <table border="0" width="100%">
@@ -170,7 +172,7 @@
                                 <td><strong>Value</strong></td>
                                 <td><strong>Variable Name</strong></td>
                                 <td><strong>Mandatory</strong></td>
-                                <td><strong>Sample</strong></td>
+                                <td><strong>Notes</strong></td>
                             </tr>
                             <tr>
                                 <td>Phone Number</td>
@@ -189,6 +191,7 @@
         </form>
     </fieldset>
     <br><br>
+    {{-- Verification API --}}
     <fieldset>
         <form name="form" method="post" action="http://127.0.0.1:8000/api/verification">
             <table border="0" width="100%">
@@ -209,7 +212,7 @@
                                 <td><strong>Value</strong></td>
                                 <td><strong>Variable Name</strong></td>
                                 <td><strong>Mandatory</strong></td>
-                                <td><strong>Sample</strong></td>
+                                <td><strong>Notes</strong></td>
                             </tr>
                             <tr>
                                 <td>Phone Number</td>
@@ -235,6 +238,7 @@
         </form>
     </fieldset>
     <br><br>
+    {{-- Password Change API --}}
     <fieldset>
         <form name="form" method="post" action="http://127.0.0.1:8000/api/changepassword">
             <table border="0" width="100%">
@@ -255,7 +259,7 @@
                                 <td><strong>Value</strong></td>
                                 <td><strong>Variable Name</strong></td>
                                 <td><strong>Mandatory</strong></td>
-                                <td><strong>Sample</strong></td>
+                                <td><strong>Notes</strong></td>
                             </tr>
                             <tr>
                                 <td>Phone Number</td>
@@ -288,9 +292,10 @@
         </form>
     </fieldset>
     <br><br>
+    {{-- Login API --}}
     <fieldset>
 
-        <form name="form" method="post" action="http://127.0.0.1:8000/api/login">
+        <form name="form" method="get" action="http://127.0.0.1:8000/api/login">
             <table border="0" width="100%">
                 <tr>
                     <td height=30 colspan="2" align="left">
@@ -309,7 +314,7 @@
                                 <td><strong>Value</strong></td>
                                 <td><strong>Variable Name</strong></td>
                                 <td><strong>Mandatory</strong></td>
-                                <td><strong>Sample</strong></td>
+                                <td><strong>Notes</strong></td>
                             </tr>
                             <tr>
                                 <td>Phone Number</td>
@@ -335,6 +340,7 @@
         </form>
     </fieldset>
     <br><br>
+    {{-- User details API --}}
     <fieldset>
         <form name="form" method="get" action="http://127.0.0.1:8000/api/user">
             <table border="0" width="100%">
@@ -355,12 +361,84 @@
                                 <td><strong>Value</strong></td>
                                 <td><strong>Variable Name</strong></td>
                                 <td><strong>Mandatory</strong></td>
-                                <td><strong>Sample</strong></td>
+                                <td><strong>Notes</strong></td>
                             </tr>
                             <tr>
                                 <td>User id</td>
                                 <td><input type="text" name="user_id" id="user_id"></td>
                                 <td>user_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Records API --}}
+    <fieldset>
+
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/record">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">7. Records for both Farmer and Milkman</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/record </div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>User id</td>
+                                <td><input type="text" name="user_id" id="user_id"></td>
+                                <td>user_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Breed</td>
+                                <td><input type="text" name="breed" id="breed"></td>
+                                <td>breed</td>
+                                <td>Yes</td>
+                                <td>1 (Cow) <br>
+                                    2 (Buffalo) <br>
+                                    1,2 (Cow, Buffalo) <br>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Morning</td>
+                                <td><input type="text" name="morning" id="evening"></td>
+                                <td>morning</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Evening</td>
+                                <td><input type="text" name="evening" id="evening"></td>
+                                <td>evening</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Price</td>
+                                <td><input type="text" name="price" id="price"></td>
+                                <td>price</td>
                                 <td>Yes</td>
                                 <td>-</td>
                             </tr>

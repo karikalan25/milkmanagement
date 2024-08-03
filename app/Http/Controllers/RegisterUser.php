@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Breed;
+use App\Models\Record;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -406,8 +407,12 @@ class RegisterUser extends Controller
     public function user(Request $request){
         $data=$request->all();
         $id=$data['user_id'];
-
         $user=User::with('breeds')->findOrFail($id);
+        if($user){
+
+        }elseif(!$user){
+            return response()->json(['result'=>'0','data'=>[],'message'=>'user not found']);
+        }
         // dd($user);
         $breeds=Breed::where('user_id',$id)->get();
         // dd($breeds);
@@ -418,12 +423,17 @@ class RegisterUser extends Controller
 
         $supply = implode(',',$supplies);
         // dd($supply);
-        $litre=[];
+
+        if($user->role == 'Farmer'){
+            $litre=[];
         foreach($breeds as $breed){
             $litre[]=$breed->litres;
         }
         $litres= implode(',',$litre);
         // dd($litres);
+        }elseif($user->role=='Milkman'){
+            $litres='';
+        }
 
         $minimum_prices=[];
         foreach($breeds as $breed){
@@ -455,5 +465,101 @@ class RegisterUser extends Controller
         ];
 
         return response()->json(['result'=>'1','data'=>[$response],'message'=>'user fetched']);
+    }
+
+    public function record(Request $request){
+
+        $data=$request->all();
+
+        $breed=array_map('trim',explode(',',$data['breed']));
+        $morning=array_map('trim',explode(',',$data['morning']));
+        $evening=array_map('trim',explode(',',$data['evening']));
+        $price=array_map('trim',explode(',',$data['price']));
+
+        $rules=[
+            'morning'=>'required|integer',
+            'evening'=>'required|integer',
+            'price'=>'required|integer'
+        ];
+
+        if(in_array('1',$breed) && in_array('2',$breed)){
+            if(count($breed)>2 || count($morning)>2 || count($evening)>2 || count($price)>2){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter only cow and buffalo records']);
+            }
+            if(count($breed)<2 || count($morning)<2 || count($evening)<2 || count($price)<2){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter both cow and buffalo records']);
+            }
+            elseif(!in_array('1',$breed) && !in_array('2',$breed)){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter both cow and buffalo']);
+            }
+            $rules['morning']='required|string';
+            $rules['evening']='required|string';
+            $rules['price']='required|string';
+        }
+        elseif(in_array('1',$breed)){
+            if(count($breed)>1 || count($morning)>1 || count($evening)>1 || count($price)>1){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter only cow records']);
+            }
+            if(empty($morning[0]) || empty($evening[0]) || empty($price[0])){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter cow records']);
+            }
+            elseif(!in_array('1',$breed)){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter breed']);
+            }
+            $rules['morning']='required|string';
+            $rules['evening']='required|string';
+            $rules['price']='required|string';
+        }
+        elseif(in_array('2',$breed)){
+            if(count($breed)>1 || count($morning)>1 || count($evening)>1 || count($price)>1){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter only buffalo records']);
+            }
+            if(empty($morning[0]) || empty($evening[0]) || empty($price[0])){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter buffalo records']);
+            }
+            elseif(!in_array('2',$breed)){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'Enter breed']);
+            }
+            $rules['morning']='required|string';
+            $rules['evening']='required|string';
+            $rules['price']='required|string';
+        }
+
+        $user=User::with('breeds')->findOrFail($data['user_id'])->first();
+        $breeds=Breed::where('user_id',$data['user_id'])->get();
+        // dd($breed);
+        foreach($breeds as $animal){
+            $id[]=$animal->id;
+        }
+        dd($id);
+
+        // dd($morning);
+        // dd(count($breed));
+        if(count($breed)==2){
+            foreach ($breeds as $index => $breeds){
+                $records = Record::create([
+                    'user_id'=>$data['user_id'],
+                    'breed_id'=>$id[$index],
+                    'morning'=>$morning[$index],
+                    'evening'=>$evening[$index],
+                    'price'=>$price[$index]
+                ]);
+            }
+        }
+        elseif(count($breed)==1){
+            $records = Record::create([
+                'user_id'=>$data['user_id'],
+                'breed_id'=>$animal->id,
+                'morning'=>$data['morning'],
+                'evening'=>$data['evening'],
+                'price'=>$data['price']
+            ]);
+        }
+        $validator=Validator::make($data,$rules);
+
+        if($validator->fails()){
+            return response()->json(['result'=>'0','data'=>[],'message'=> str_replace(",","|",implode(",",$validator->errors()->all()))]);
+        }
+        return response()->json(['result'=>'1','data'=>[$data],'message'=>'Records saved']);
     }
 }
