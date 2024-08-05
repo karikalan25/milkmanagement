@@ -340,46 +340,6 @@
         </form>
     </fieldset>
     <br><br>
-    {{-- User details API --}}
-    <fieldset>
-        <form name="form" method="get" action="http://127.0.0.1:8000/api/user">
-            <table border="0" width="100%">
-                <tr>
-                    <td height=30 colspan="2" align="left">
-                        <strong style="text-decoration:underline;color:#F00;">6. Get user details [ User ]</strong><br>
-                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/user</div>
-                        <div><strong>Method: </strong>POST</div>
-                        <div><strong>API Mode: </strong>Development</div>
-                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" align="center">
-                        <table width=100% border="0" cellspacing="2" cellpadding="2">
-                            <tr style="background-color:#162133; color:#FFF;">
-                                <td><strong>Label Name</strong></td>
-                                <td><strong>Value</strong></td>
-                                <td><strong>Variable Name</strong></td>
-                                <td><strong>Mandatory</strong></td>
-                                <td><strong>Notes</strong></td>
-                            </tr>
-                            <tr>
-                                <td>User id</td>
-                                <td><input type="text" name="user_id" id="user_id"></td>
-                                <td>user_id</td>
-                                <td>Yes</td>
-                                <td>-</td>
-                            </tr>
-                            <tr>
-                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </form>
-    </fieldset>
-    <br><br>
     {{-- Records API --}}
     <fieldset>
 
@@ -387,7 +347,7 @@
             <table border="0" width="100%">
                 <tr>
                     <td height=30 colspan="2" align="left">
-                        <strong style="text-decoration:underline;color:#F00;">7. Records for both Farmer and Milkman</strong><br>
+                        <strong style="text-decoration:underline;color:#F00;">6. Records for both Farmer and Milkman</strong><br>
                         <div><strong>API URL:</strong> http://127.0.0.1:8000/api/record </div>
                         <div><strong>Method: </strong>POST</div>
                         <div><strong>API Mode: </strong>Development</div>
@@ -439,6 +399,271 @@
                                 <td>Price</td>
                                 <td><input type="text" name="price" id="price"></td>
                                 <td>price</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Notes storing API --}}
+    <fieldset>
+            <form name="form" method="post" action="http://127.0.0.1:8000/api/notes">
+                <table border="0" width="100%">
+                    <tr>
+                        <td height=30 colspan="2" align="left">
+                            <strong style="text-decoration:underline;color:#F00;">7. Writing notes in record [ User ]</strong><br>
+                            <div><strong>API URL:</strong> http://127.0.0.1:8000/api/notes</div>
+                            <div><strong>Method: </strong>POST</div>
+                            <div><strong>API Mode: </strong>Development</div>
+                            <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" align="center">
+                            <table width=100% border="0" cellspacing="2" cellpadding="2">
+                                <tr style="background-color:#162133; color:#FFF;">
+                                    <td><strong>Label Name</strong></td>
+                                    <td><strong>Value</strong></td>
+                                    <td><strong>Variable Name</strong></td>
+                                    <td><strong>Mandatory</strong></td>
+                                    <td><strong>Notes</strong></td>
+                                </tr>
+                                <tr>
+                                    <td>User id</td>
+                                    <td><input type="text" name="user_id" id="user_id"></td>
+                                    <td>user_id</td>
+                                    <td>Yes</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td>Breed</td>
+                                    <td><input type="text" name="breed" id="breed"></td>
+                                    <td>breed</td>
+                                    <td>Yes</td>
+                                    <td>1 (Cow) <br>2 (Buffalo) </td>
+                                </tr>
+                                <tr>
+                                    <td>Notes</td>
+                                    <td><input type="text" name="notes" id="notes"></td>
+                                    <td>notes</td>
+                                    <td>Yes</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+    </fieldset>
+    <br><br>
+    {{-- Farmer details API --}}
+    <fieldset>
+        <form name="form" method="get" action="http://127.0.0.1:8000/api/farmerdetails">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">8. Get farmer details [ Farmer ]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/farmerdetails</div>
+                        <div><strong>Method: </strong>GET</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Milkman details API --}}
+    <fieldset>
+        <form name="form" method="get" action="http://127.0.0.1:8000/api/milkmandetails">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">9. Get Milkman details [ Milkman ]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/milkmandetails</div>
+                        <div><strong>Method: </strong>GET</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Farmer Milk supply API --}}
+    <fieldset>
+
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/milksupply">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">10. Supplying in litres and Buying in litres</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/milksupply </div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Farmer_id</td>
+                                <td><input type="text" name="farmer_id" id="farmer_id"></td>
+                                <td>farmer_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Milkman_id</td>
+                                <td><input type="text" name="milkman_id" id="milkman_id"></td>
+                                <td>milkman_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Breed</td>
+                                <td><input type="text" name="breed" id="breed"></td>
+                                <td>breed</td>
+                                <td>Yes</td>
+                                <td>1 (Cow) <br>2 (Buffalo)</td>
+                            </tr>
+                            <tr>
+                                <td>Morning</td>
+                                <td><input type="text" name="morning" id="evening"></td>
+                                <td>morning</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Evening</td>
+                                <td><input type="text" name="evening" id="evening"></td>
+                                <td>evening</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Price</td>
+                                <td><input type="text" name="price" id="price"></td>
+                                <td>price</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Farmer and Milkman withdraw API --}}
+    <fieldset>
+
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/withdraw">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">11. Farmer and Milkman withdraw the supply</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/withdraw </div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Farmer_id</td>
+                                <td><input type="text" name="farmer_id" id="farmer_id"></td>
+                                <td>farmer_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Milkman_id</td>
+                                <td><input type="text" name="milkman_id" id="milkman_id"></td>
+                                <td>milkman_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Date</td>
+                                <td><input type="text" name="date" id="date"></td>
+                                <td>date</td>
+                                <td>Yes</td>
+                                <td>Timestamps</td>
+                            </tr>
+                            <tr>
+                                <td>Withdraw</td>
+                                <td><input type="text" name="withdraw" id="withdraw"></td>
+                                <td>withdraw</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Description</td>
+                                <td><input type="text" name="description" id="description"></td>
+                                <td>description</td>
                                 <td>Yes</td>
                                 <td>-</td>
                             </tr>

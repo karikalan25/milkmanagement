@@ -36,6 +36,12 @@ class User extends Authenticatable
     public function records(){
         return $this->hasMany(Record::class);
     }
+    public function supplies(){
+        return $this->hasMany(Supply::class);
+    }
+    public function withdrawsupplies(){
+        return $this->hasMany(WithdrawSupply::class);
+    }
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -46,6 +52,10 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
+        'otp',
+        'expires_at',
+        'created_at',
+        'updated_at',
         'password',
         'remember_token',
     ];

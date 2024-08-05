@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Breed;
 use App\Models\Record;
+use App\Models\Supply;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -404,72 +405,10 @@ class RegisterUser extends Controller
         }
     }
 
-    public function user(Request $request){
-        $data=$request->all();
-        $id=$data['user_id'];
-        $user=User::with('breeds')->findOrFail($id);
-        if($user){
-
-        }elseif(!$user){
-            return response()->json(['result'=>'0','data'=>[],'message'=>'user not found']);
-        }
-        // dd($user);
-        $breeds=Breed::where('user_id',$id)->get();
-        // dd($breeds);
-        $supplies = [];
-        foreach ($breeds as $breed) {
-            $supplies[] = $breed->supply; // Accessing the 'supply' attribute
-        }
-
-        $supply = implode(',',$supplies);
-        // dd($supply);
-
-        if($user->role == 'Farmer'){
-            $litre=[];
-        foreach($breeds as $breed){
-            $litre[]=$breed->litres;
-        }
-        $litres= implode(',',$litre);
-        // dd($litres);
-        }elseif($user->role=='Milkman'){
-            $litres='';
-        }
-
-        $minimum_prices=[];
-        foreach($breeds as $breed){
-            $minimum_prices[]=$breed->minimum_price;
-        }
-        $minimum_price= implode(',',$minimum_prices);
-        // dd($minimum_price);
-
-        $maximum_prices=[];
-        foreach($breeds as $breed){
-            $maximum_prices[]=$breed->maximum_price;
-        }
-        $maximum_price= implode(',',$maximum_prices);
-        // dd($maximum_price);
-
-        $response=[
-            'name'=>$user->name,
-            'role'=>$user->role,
-            'gender'=>$user->gender,
-            'dob'=>$user->dob,
-            'address'=>$user->address,
-            'email'=>$user->email,
-            'phone'=>$user->phone,
-            'payload'=>$user->payload,
-            'supply'=>$supply,
-            'litres'=>$litres,
-            'minimum_price'=>$minimum_price,
-            'maximum_price'=>$maximum_price
-        ];
-
-        return response()->json(['result'=>'1','data'=>[$response],'message'=>'user fetched']);
-    }
-
     public function record(Request $request){
 
         $data=$request->all();
+
 
         $breed=array_map('trim',explode(',',$data['breed']));
         $morning=array_map('trim',explode(',',$data['morning']));
@@ -524,42 +463,247 @@ class RegisterUser extends Controller
             $rules['evening']='required|string';
             $rules['price']='required|string';
         }
-
-        $user=User::with('breeds')->findOrFail($data['user_id'])->first();
-        $breeds=Breed::where('user_id',$data['user_id'])->get();
-        // dd($breed);
-        foreach($breeds as $animal){
-            $id[]=$animal->id;
-        }
-        dd($id);
-
-        // dd($morning);
-        // dd(count($breed));
-        if(count($breed)==2){
-            foreach ($breeds as $index => $breeds){
-                $records = Record::create([
-                    'user_id'=>$data['user_id'],
-                    'breed_id'=>$id[$index],
-                    'morning'=>$morning[$index],
-                    'evening'=>$evening[$index],
-                    'price'=>$price[$index]
-                ]);
-            }
-        }
-        elseif(count($breed)==1){
-            $records = Record::create([
-                'user_id'=>$data['user_id'],
-                'breed_id'=>$animal->id,
-                'morning'=>$data['morning'],
-                'evening'=>$data['evening'],
-                'price'=>$data['price']
-            ]);
-        }
         $validator=Validator::make($data,$rules);
 
         if($validator->fails()){
             return response()->json(['result'=>'0','data'=>[],'message'=> str_replace(",","|",implode(",",$validator->errors()->all()))]);
         }
-        return response()->json(['result'=>'1','data'=>[$data],'message'=>'Records saved']);
+
+        $user=User::with('breeds')->findOrFail($data['user_id']);
+        // dd($user);
+
+             // Access properties of the breed model
+        // }
+        // $breeds=Breed::where('user_id',$data['user_id'])->first();
+        // dd($breed);
+        // foreach($breeds as $animal){
+        //     $id[]=$animal->id;
+        // }
+        // dd($breeds->id);
+
+        // dd($morning);
+        // dd(count($breed));
+        foreach ($breed as $index => $breedType) {
+            $breedRecord = $user->breeds->firstWhere('supply', $breedType == '1' ? 'Cow' : 'Buffalo');
+            // dd($breedRecord);
+            if($breedRecord){
+                $today = now()->startOfDay();
+                $existingRecord = Record::where('user_id',$data['user_id'])
+                                ->where('breed_id',$breedRecord->id)
+                                ->whereDate('created_at', $today)
+                                ->first();
+
+                if($existingRecord){
+                    $days=now()->diffInDays($existingRecord->created_at);
+
+                    if($days>15){
+                        return response()->json(['result'=>'0','data'=>[],'message'=>'you can update the records only for 15 days']);
+                    }
+                    $existingRecord->update([
+                        'morning' => $morning[$index] ?? $existingRecord->morning,
+                        'evening' => $evening[$index] ?? $existingRecord->evening,
+                        'price' => $price[$index] ?? $existingRecord->price
+                    ]);
+                }
+                else{
+                    Record::create([
+                        'user_id' => $data['user_id'],
+                        'breed_id' => $breedRecord->id,
+                        'morning' => $morning[$index] ?? '',
+                        'evening' => $evening[$index] ?? '',
+                        'price' => $price[$index] ?? ''
+                    ]);
+                }
+            }
+        }
+        return response()->json(['result' => '1', 'data' => [$data], 'message' => 'Records saved']);
     }
+
+    public function notes(Request $request) {
+        $data = $request->all();
+
+        $breed = array_map('trim', explode(',', $data['breed']));
+        $notes = array_map('trim', explode(',', $data['notes']));
+
+        // Validate input data
+        $rules = [
+            'user_id' => 'required|integer|exists:users,id',
+            'breed' => 'required|string',
+            'notes' => 'required|string'
+        ];
+
+        if (!in_array('1', $breed) && !in_array('2', $breed)) {
+            return response()->json(['result' => '0', 'data' => [], 'message' => 'Enter a valid breed'], 422);
+        }
+
+        $validator = Validator::make($data, $rules);
+
+        if ($validator->fails()) {
+            return response()->json(['result' => '0', 'data' => [], 'message' => str_replace(",", "|", implode(",", $validator->errors()->all()))], 422);
+        }
+
+        $user = User::with('breeds', 'records')->where('id', $data['user_id'])->firstOrFail();
+
+        foreach ($breed as $index => $breedType) {
+            $supplyType = $breedType == '1' ? 'Cow' : 'Buffalo';
+            $breedRecord = $user->breeds->firstWhere('supply', $supplyType);
+
+            if ($breedRecord) {
+                $today = now()->startOfDay();
+                $existingRecord = Record::where('user_id', $data['user_id'])
+                                        ->where('breed_id', $breedRecord->id)
+                                        ->whereDate('created_at', $today)
+                                        ->first();
+
+                if ($existingRecord) {
+                    // Update existing notes
+                    $existingRecord->update([
+                        'notes' => $notes[$index] ?? $existingRecord->notes
+                    ]);
+                } else {
+                    // Optionally, create a new record if it doesn't exist
+                    Record::create([
+                        'user_id' => $data['user_id'],
+                        'breed_id' => $breedRecord->id,
+                        'notes' => $notes[$index] ?? ''
+                    ]);
+                }
+            } else {
+                return response()->json(['result' => '0', 'data' => [], 'message' => "Breed record for $supplyType not found for user"], 422);
+            }
+        }
+
+        $breeds=[];
+        foreach ($breed as $supplies) {
+            if ($supplies == 1) {
+                $breeds[] = 'Cow';
+            } elseif ($supplies == 2) {
+                $breeds[] = 'Buffalo';
+            }
+        }
+        $data['breed']=implode(',',$breeds);
+
+        return response()->json(['result' => '1', 'data' => [$data], 'message' => 'Notes saved or updated']);
+    }
+
+    public function farmerdetails(Request $request){
+        $role='Farmer';
+        $user=User::with('breeds')->where('role',$role)->get();
+        return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
+    }
+
+    public function milkmandetails(Request $request){
+        $role='Milkman';
+        $user=User::with('breeds')->where('role',$role)->get();
+        return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
+    }
+
+    public function milksupply(Request $request){
+        $data=$request->all();
+        $farmer_id=$data['farmer_id'];
+        $milkman_id=$data['milkman_id'];
+        $morning = array_map('trim', explode(',', $data['morning']));
+        $evening = array_map('trim', explode(',', $data['evening']));
+        $price = array_map('trim', explode(',', $data['price']));
+        $breed=array_map('trim',explode(',',$data['breed']));
+        $rules=[
+            'morning'=>'required',
+            'evening'=>'required',
+            'price'=>'required'
+        ];
+        if(in_array('1',$breed)){
+            $rules['morning']='required';
+            $rules['evening']='required';
+            $rules['price']='required';
+        }
+        if(in_array('2',$breed)){
+            $rules['morning']='required';
+            $rules['evening']='required';
+            $rules['price']='required';
+        }
+
+        $validator=Validator::make($data,$rules);
+        if($validator->fails()){
+            return response()->json(['result' => '0', 'data' => [], 'message' => str_replace(",", "|", implode(",", $validator->errors()->all()))], 422);
+        }
+        // $user = User::with('breeds', 'records')->where('id', $data['user_id'])->firstOrFail();
+
+        foreach($breed as $index => $breedType){
+            $supplyType = $breedType == '1' ? 'cow' : 'Buffalo';
+            $breedRecord = Breed::where('supply', $supplyType)->firstorFail();
+            if($breedRecord){
+                $today = now()->startOfDay();
+                $existingRecord=Supply::where('farmer_id',$data['farmer_id'])
+                                        ->where('milkman_id',$data['milkman_id'])
+                                        ->where('breed_id',$breedRecord->id)
+                                        ->whereDate('created_at',$today)
+                                        ->first();
+
+            $morningValue = (string) isset($morning[$index]) ? (float) $morning[$index] : 0;
+            $eveningValue =(string) isset($evening[$index]) ? (float) $evening[$index] : 0;
+            $priceValue = (string) isset($price[$index]) ? (float) $price[$index] : 0;
+
+            $totalValue = $morningValue + $eveningValue; // Calculate total
+
+            if ($existingRecord) {
+                $days = now()->diffInDays($existingRecord->created_at);
+
+                if ($days > 15) {
+                    return response()->json([
+                        'result' => '0',
+                        'data' => [],
+                        'message' => 'You can update the records only for 15 days'
+                    ]);
+                }
+
+                $existingRecord->update([
+                    'morning' => $morningValue,
+                    'evening' => $eveningValue,
+                    'price' => $priceValue,
+                    'total' => $totalValue // Update total
+                ]);
+            } else {
+                // dd($breedRecord->id);
+                Supply::create([
+                    'farmer_id' => $data['farmer_id'],
+                    'milkman_id' => $data['milkman_id'],
+                    'breed_id' => $breedRecord->id,
+                    'morning' => $morningValue,
+                    'evening' => $eveningValue,
+                    'price' => $priceValue,
+                    'total' => $totalValue // Store total
+                ]);
+            }
+        }
+        }
+        $breeds='';
+        foreach ($breed as $supplies) {
+            if ($supplies == 1) {
+                $breeds = 'Cow';
+            } elseif ($supplies == 2) {
+                $breeds= 'Buffalo';
+            }
+        }
+        $data['supply']=$breeds;
+
+        $response=[
+        'breed'=>$data['supply'],
+        'morning' => $morningValue,
+        'evening' => $eveningValue,
+        'price' => $priceValue,
+        'total' => $totalValue
+        ];
+
+        return response()->json([
+            'result' => '1',
+            'data' => [$response],
+            'message' => 'Supply records updated successfully'
+        ], 200);
+    }
+
+    public function withdraw(Request $request){
+        $data=$request->all();
+        dd($data);
+    }
+
 }

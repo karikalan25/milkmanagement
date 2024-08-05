@@ -19,10 +19,14 @@ Route::post('/changepassword',[RegisterUser::class,'changepassword']);
 
 Route::get('/login',[RegisterUser::class,'login'])->name('login');
 
-Route::get('/user',[RegisterUser::class,'user']);
-
 Route::post('/record', [RegisterUser::class, 'record']);
-    // Add other routes that require authentication here
 
+Route::post('/notes',[RegisterUser::class,'notes']);
 
+Route::get('/farmerdetails',[RegisterUser::class,'farmerdetails']);
 
+Route::get('/milkmandetails',[RegisterUser::class,'milkmandetails']);
+
+Route::post('/milksupply',[RegisterUser::class,'milksupply']);
+
+Route::post('/withdraw',[RegisterUser::class,'withdraw']);

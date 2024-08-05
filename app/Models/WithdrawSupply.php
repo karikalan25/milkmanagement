@@ -5,28 +5,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Record extends Model
+class WithdrawSupply extends Model
 {
     use HasFactory;
 
     protected $fillable=[
-        'user_id',
-        'breed_id',
-        'morning',
-        'evening',
-        'price',
-        'notes',
+        'farmer_id',
+        'milkman_id',
+        'date',
+        'withdraw',
+        'description',
     ];
 
-    protected $hidden = [
+    protected $hidden=[
         'created_at',
-        'updated_at',
+        'updated_at'
     ];
 
     public function users(){
         return $this->belongsTo(User::class);
-    }
-    public function breeds(){
-        return $this->belongsTo(Breed::class);
     }
 }
