@@ -23,10 +23,10 @@ class Record extends Model
         'updated_at',
     ];
 
-    public function users(){
-        return $this->belongsTo(User::class);
+    public function user(){
+        return $this->belongsTo(User::class,'id');
     }
-    public function breeds(){
-        return $this->belongsTo(Breed::class);
+    public function breed(){
+        return $this->belongsTo(Breed::class,'id');
     }
 }

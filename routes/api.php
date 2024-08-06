@@ -30,3 +30,7 @@ Route::get('/milkmandetails',[RegisterUser::class,'milkmandetails']);
 Route::post('/milksupply',[RegisterUser::class,'milksupply']);
 
 Route::post('/withdraw',[RegisterUser::class,'withdraw']);
+
+Route::get('/farmrecords',[RegisterUser::class,'farmrecords']);
+
+Route::get('/supplyrecords',[RegisterUser::class,'supplyrecords']);

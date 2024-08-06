@@ -27,6 +27,7 @@ class User extends Authenticatable
         'phone',
         'payload',
         'password',
+        'photo',
         'otp',
     ];
 
@@ -37,10 +38,10 @@ class User extends Authenticatable
         return $this->hasMany(Record::class);
     }
     public function supplies(){
-        return $this->hasMany(Supply::class);
+        return $this->hasMany(Supply::class,'id');
     }
     public function withdrawsupplies(){
-        return $this->hasMany(WithdrawSupply::class);
+        return $this->hasMany(WithdrawSupply::class,'id');
     }
     /**
      * The attributes that should be hidden for serialization.

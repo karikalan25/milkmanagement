@@ -7,15 +7,15 @@ use App\Models\User;
 use App\Models\Breed;
 use App\Models\Record;
 use App\Models\Supply;
+use App\Models\WithdrawSupply;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use PDO;
 
 class RegisterUser extends Controller
-{
+{   #1
     public function register(Request $request)
     {
         // Split the supply values into an array
@@ -242,8 +242,12 @@ class RegisterUser extends Controller
         }
         $data['supply']=implode(',',$breed);
 
-
-
+         // Set default image based on gender
+            $defaultImage = $data['gender'] == 'Male'
+            ? 'male.jpg'
+            : 'female.jpg';
+        $data['profile_image'] = asset('storage/default_images/' . $defaultImage);
+        // dd($data['profile_image']);
         // Payload
         if ($data['role'] == 'Milkman') {
             $payloadMapping = [
@@ -277,6 +281,7 @@ class RegisterUser extends Controller
             'phone'=>$data['phone'],
             'payload'=>$data['payload'],
             'password'=>Hash::make($data['password']),
+            'photo' => $defaultImage,
         ]);
 
         foreach ($breed as $index => $breeds) {
@@ -294,7 +299,7 @@ class RegisterUser extends Controller
 
         return response()->json(['result'=>'1','data'=>[$data],'message'=>'user registered']);
     }
-
+    #2
     public function otp(Request $request){
 
         // dd($data);
@@ -323,7 +328,7 @@ class RegisterUser extends Controller
 
         return response()->json(['result'=>'1','data'=>[$response],'message'=>'otp sent to registered mobile number']);
     }
-
+    #3
     public function verification(Request $request){
         $data=$request->all();
         // dd($data);
@@ -358,7 +363,7 @@ class RegisterUser extends Controller
             return response()->json(['result'=>'1','data'=>[],'message'=>'otp verified successfully']);
 
     }
-
+    #4
     public function changepassword(Request $request){
         $data=$request->all();
         $validator=Validator::make($data,[
@@ -379,7 +384,7 @@ class RegisterUser extends Controller
             return response()->json(['result'=>'0','data'=>[],'message'=>'user not found']);
         }
     }
-
+    #5
     public function login(Request $request){
         $data=$request->all();
 
@@ -404,7 +409,7 @@ class RegisterUser extends Controller
             return response()->json(['result'=>'0','data'=>[],'message'=>'invalid credentials']);
         }
     }
-
+    #6
     public function record(Request $request){
 
         $data=$request->all();
@@ -426,11 +431,13 @@ class RegisterUser extends Controller
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter only cow and buffalo records']);
             }
             if(count($breed)<2 || count($morning)<2 || count($evening)<2 || count($price)<2){
+                dd(count($breed)<2);
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter both cow and buffalo records']);
             }
             elseif(!in_array('1',$breed) && !in_array('2',$breed)){
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter both cow and buffalo']);
             }
+
             $rules['morning']='required|string';
             $rules['evening']='required|string';
             $rules['price']='required|string';
@@ -470,22 +477,10 @@ class RegisterUser extends Controller
         }
 
         $user=User::with('breeds')->findOrFail($data['user_id']);
-        // dd($user);
-
-             // Access properties of the breed model
-        // }
-        // $breeds=Breed::where('user_id',$data['user_id'])->first();
         // dd($breed);
-        // foreach($breeds as $animal){
-        //     $id[]=$animal->id;
-        // }
-        // dd($breeds->id);
-
-        // dd($morning);
-        // dd(count($breed));
         foreach ($breed as $index => $breedType) {
+
             $breedRecord = $user->breeds->firstWhere('supply', $breedType == '1' ? 'Cow' : 'Buffalo');
-            // dd($breedRecord);
             if($breedRecord){
                 $today = now()->startOfDay();
                 $existingRecord = Record::where('user_id',$data['user_id'])
@@ -515,10 +510,13 @@ class RegisterUser extends Controller
                     ]);
                 }
             }
+            elseif(!$breedRecord){
+                return response()->json(['result' => '0', 'data' => [], 'message' => 'No Records found']);
+            }
         }
         return response()->json(['result' => '1', 'data' => [$data], 'message' => 'Records saved']);
     }
-
+    #7
     public function notes(Request $request) {
         $data = $request->all();
 
@@ -585,19 +583,29 @@ class RegisterUser extends Controller
 
         return response()->json(['result' => '1', 'data' => [$data], 'message' => 'Notes saved or updated']);
     }
-
+    #8
     public function farmerdetails(Request $request){
         $role='Farmer';
         $user=User::with('breeds')->where('role',$role)->get();
+        $user->transform(function ($user) {
+            $user->photo = $user->photo ? asset('storage/default_images/' . $user->photo) : null;
+            return $user;
+        });
+
         return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
     }
-
+    #9
     public function milkmandetails(Request $request){
         $role='Milkman';
         $user=User::with('breeds')->where('role',$role)->get();
+        $user->transform(function ($user) {
+            $user->photo = $user->photo ? asset('storage/default_images/' . $user->photo) : null;
+            return $user;
+        });
+
         return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
     }
-
+    #10
     public function milksupply(Request $request){
         $data=$request->all();
         $farmer_id=$data['farmer_id'];
@@ -700,10 +708,146 @@ class RegisterUser extends Controller
             'message' => 'Supply records updated successfully'
         ], 200);
     }
-
+    #11
     public function withdraw(Request $request){
         $data=$request->all();
-        dd($data);
-    }
+        $withdraw=array_map('trim',explode(',',$data['withdraw']));
+        $rules=[
+            'date'=>'required',
+            'withdraw'=>'required',
+            'description'=>'required',
+        ];
 
+        $validator = Validator::make($data,$rules);
+        if($validator->fails()){
+            return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(',','|',implode(',',$validator->errors()->all()))]);
+        }
+        $withdraw_reason=[];
+        foreach($withdraw as $withdraws){
+            if($withdraws=='1'){
+                $withdraw_reason[]='Payment Issues';
+            }
+            if($withdraws=='2'){
+                $withdraw_reason[]='Harsh or Mishbehaving';
+            }
+            if($withdraws=='3'){
+                $withdraw_reason[]='Cheating or fraud';
+            }
+            if($withdraws=='4'){
+                $withdraw_reason[]='Others';
+            }
+        }
+        $data['withdraw']=implode(',',$withdraw_reason);
+        if($data['withdraw']){
+            WithdrawSupply::create([
+                'farmer_id'=>$data['farmer_id'],
+                'milkman_id'=>$data['milkman_id'],
+                'date'=>$data['date'],
+                'withdraw'=>$data['withdraw'],
+                'description'=>$data['description'],
+            ]);
+            Supply::where('farmer_id',$data['farmer_id'])
+                    ->where('milkman_id',$data['milkman_id'])
+                    ->delete();
+        }
+
+        return response()->json(['result'=>'1','data'=>[$data],'message'=>'Withdrawed']);
+    }
+    #12
+    public function farmrecords(Request $request){
+        $data = $request->all();
+        $ids = array_map('trim', explode(',', $data['user_id']));
+        $supply=array_map('trim',explode(',',$data['breed']));
+        $breed=[];
+        foreach($supply as $breeds){
+            if($breeds=='1'){
+                $breed[]='Cow';
+            }
+            if($breeds=='2'){
+                $breed[]='Buffalo';
+            }
+        }
+
+        $perPage = 7;
+
+        $currentDate = now();
+        $startOfMonth = $currentDate->copy()->startOfMonth();
+        $endOfMonth = $currentDate->copy()->endOfMonth();
+
+        $startDate = $startOfMonth->copy()->subDays(7)->startOfDay();
+        $endDate = $endOfMonth->copy()->endOfDay();
+
+        // Fetch records within the date range and belonging to specified user IDs
+        $query = Record::with('breed')
+        ->whereIn('user_id', $ids)
+        ->whereHas('breed', function($query) use ($breed) {
+            $query->where('supply', $breed);
+        })
+        ->whereBetween('created_at', [$startDate, $endDate]);
+
+        $records = $query->paginate($perPage);
+        // Paginate the records
+
+
+        if ($records->isNotEmpty()) {
+            return response()->json([
+                'result' => '1',
+                'data' => $records->items(),
+                'message' => 'fetched'
+            ]);
+        } else {
+            return response()->json([
+                'result' => '0',
+                'data' => [],
+                'message' => 'not found'
+            ]);
+        }
+    }
+    #13
+    public function supplyrecords(Request $request){
+        $data = $request->all();
+        $ids = array_map('trim', explode(',', $data['user_id']));
+        $supply=array_map('trim',explode(',',$data['breed']));
+        $breed=[];
+        foreach($supply as $breeds){
+            if($breeds=='1'){
+                $breed[]='Cow';
+            }
+            if($breeds=='2'){
+                $breed[]='Buffalo';
+            }
+        }
+
+        $perPage=7;
+
+        $currentDate = now();
+        $endOfMonth = $currentDate->copy()->endOfMonth();
+        $startOfMonth = $currentDate->copy()->startOfMonth();
+
+        // Calculate the start date for the last 7 days of the current month
+        $startDate = $startOfMonth->copy()->subDays(7)->startOfDay();
+        $endDate = $endOfMonth->copy()->endOfDay();
+        $query = Supply::with('breed')
+        ->whereIn('farmer_id', $ids)
+        ->whereHas('breed', function($query) use ($breed) {
+        $query->where('supply', $breed);
+        })
+        ->whereBetween('created_at', [$startDate, $endDate]);
+
+        $supplies = $query->paginate($perPage);
+
+        if ($supplies->isNotEmpty()) {
+            return response()->json([
+                'result' => '1',
+                'data' => $supplies->items(),
+                'message' => 'fetched'
+            ]);
+        } else {
+            return response()->json([
+                'result' => '0',
+                'data' => [],
+                'message' => 'not found'
+            ]);
+        }
+    }
 }
