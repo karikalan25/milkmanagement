@@ -787,12 +787,30 @@ class RegisterUser extends Controller
 
         $records = $query->paginate($perPage);
         // Paginate the records
-
+        $response = $records->map(function ($record) {
+            return [
+                'id' => (string) $record->id,
+                'user_id' => (string) $record->user_id,
+                'breed_id' => (string) $record->breed_id,
+                'morning' => (string) $record->morning,
+                'evening' => (string) $record->evening,
+                'price' => (string) $record->price,
+                'notes' => $record->notes,
+                'records' => [
+                    'id' => (string) $record->breed->id,
+                    'user_id' => (string) $record->breed->user_id,
+                    'supply' => $record->breed->supply,
+                    'litres' => $record->breed->litres,
+                    'minimum_price' => $record->breed->minimum_price,
+                    'maximum_price' => $record->breed->maximum_price
+                ]
+            ];
+        });
 
         if ($records->isNotEmpty()) {
             return response()->json([
                 'result' => '1',
-                'data' => $records->items(),
+                'data' => $response,
                 'message' => 'fetched'
             ]);
         } else {
