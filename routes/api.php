@@ -34,3 +34,5 @@ Route::post('/withdraw',[RegisterUser::class,'withdraw']);
 Route::get('/farmrecords',[RegisterUser::class,'farmrecords']);
 
 Route::get('/supplyrecords',[RegisterUser::class,'supplyrecords']);
+
+Route::post('updateuser', [RegisterUser::class,'updateuser']);

@@ -22,10 +22,11 @@ return new class extends Migration
             $table->string('phone')->unique();
             $table->string('payload')->default('');
             $table->string('password');
-            $table->string('profile_image');
+            $table->string('profile_image')->nullable();
             $table->integer('otp')->default(0);
             $table->rememberToken();
             $table->timestamp('expires_at');
+            $table->softDeletes();
             $table->timestamps();
         });
 

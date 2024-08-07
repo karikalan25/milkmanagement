@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('farmer_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreignId('milkman_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreignId('breed_id')->references('id')->on('breeds')->onDelete('cascade');
             $table->string('morning');
             $table->string('evening');
             $table->string('total');

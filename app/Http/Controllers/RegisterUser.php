@@ -246,7 +246,7 @@ class RegisterUser extends Controller
             $defaultImage = $data['gender'] == 'Male'
             ? 'male.jpg'
             : 'female.jpg';
-        $data['profile_image'] = asset('storage/default_images/' . $defaultImage);
+        $data['profile_image'] = asset('storage/profile_images/' . $defaultImage);
         // dd($data['profile_image']);
         // Payload
         if ($data['role'] == 'Milkman') {
@@ -281,7 +281,7 @@ class RegisterUser extends Controller
             'phone'=>$data['phone'],
             'payload'=>$data['payload'],
             'password'=>Hash::make($data['password']),
-            'photo' => $defaultImage,
+            'profile_image' => $defaultImage,
         ]);
 
         foreach ($breed as $index => $breeds) {
@@ -584,22 +584,22 @@ class RegisterUser extends Controller
         return response()->json(['result' => '1', 'data' => [$data], 'message' => 'Notes saved or updated']);
     }
     #8
-    public function farmerdetails(Request $request){
+    public function farmerdetails(){
         $role='Farmer';
         $user=User::with('breeds')->where('role',$role)->get();
         $user->transform(function ($user) {
-            $user->photo = $user->photo ? asset('storage/default_images/' . $user->photo) : null;
+            $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
             return $user;
         });
 
         return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
     }
     #9
-    public function milkmandetails(Request $request){
+    public function milkmandetails(){
         $role='Milkman';
         $user=User::with('breeds')->where('role',$role)->get();
         $user->transform(function ($user) {
-            $user->photo = $user->photo ? asset('storage/default_images/' . $user->photo) : null;
+            $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
             return $user;
         });
 
@@ -610,6 +610,7 @@ class RegisterUser extends Controller
         $data=$request->all();
         $farmer_id=$data['farmer_id'];
         $milkman_id=$data['milkman_id'];
+        $users=User::where('id',$farmer_id)->where('id',$milkman_id)->get();
         $morning = array_map('trim', explode(',', $data['morning']));
         $evening = array_map('trim', explode(',', $data['evening']));
         $price = array_map('trim', explode(',', $data['price']));
@@ -696,10 +697,10 @@ class RegisterUser extends Controller
 
         $response=[
         'breed'=>$data['supply'],
-        'morning' => $morningValue,
-        'evening' => $eveningValue,
-        'price' => $priceValue,
-        'total' => $totalValue
+        'morning' => (string) $morningValue,
+        'evening' => (string) $eveningValue,
+        'price' => (string) $priceValue,
+        'total' => (string) $totalValue
         ];
 
         return response()->json([
@@ -758,6 +759,19 @@ class RegisterUser extends Controller
         $data = $request->all();
         $ids = array_map('trim', explode(',', $data['user_id']));
         $supply=array_map('trim',explode(',',$data['breed']));
+        $users=User::with('breeds')->where('id',$ids)->first();
+        if(!$users){
+            return response()->json([
+                'result' => '0',
+                'data' => [],
+                'message' => 'not found'
+            ]);
+        }
+        $breeds=$users->breeds;
+        foreach($breeds as $price){
+            $maximum_price=$price->maximum_price;
+        }
+
         $breed=[];
         foreach($supply as $breeds){
             if($breeds=='1'){
@@ -787,38 +801,80 @@ class RegisterUser extends Controller
 
         $records = $query->paginate($perPage);
         // Paginate the records
-        $response = $records->map(function ($record) {
-            return [
-                'id' => (string) $record->id,
-                'user_id' => (string) $record->user_id,
-                'breed_id' => (string) $record->breed_id,
-                'morning' => (string) $record->morning,
-                'evening' => (string) $record->evening,
-                'price' => (string) $record->price,
-                'notes' => $record->notes,
-                'records' => [
-                    'id' => (string) $record->breed->id,
-                    'user_id' => (string) $record->breed->user_id,
-                    'supply' => $record->breed->supply,
-                    'litres' => $record->breed->litres,
-                    'minimum_price' => $record->breed->minimum_price,
-                    'maximum_price' => $record->breed->maximum_price
-                ]
-            ];
-        });
+        if ($users->role == 'Milkman') {
+            $morningTotal = $records->sum('morning');
+            $eveningTotal = $records->sum('evening');
+            $totalLitres = $morningTotal + $eveningTotal;
+            $price = $maximum_price; // Assuming a fixed price per litre
+            $totalPrice = $totalLitres * $price;
 
-        if ($records->isNotEmpty()) {
+            $response = $records->map(function ($record) {
+                return [
+                    'id' => (string) $record->id,
+                    'user_id' => (string) $record->user_id,
+                    'breed_id' => (string) $record->breed_id,
+                    'morning' => (string) $record->morning,
+                    'evening' => (string) $record->evening,
+                    'price' => (string) $record->price,
+                    'notes' => $record->notes,
+                    'records' => [
+                        'id' => (string) $record->breed->id,
+                        'user_id' => (string) $record->breed->user_id,
+                        'supply' => $record->breed->supply,
+                        'litres' => $record->breed->litres,
+                        'minimum_price' => $record->breed->minimum_price,
+                        'maximum_price' => $record->breed->maximum_price
+                    ],
+
+                ];
+
+            });
+            $response->put('totals', [
+                'morningTotal' => $morningTotal,
+                'eveningTotal' => $eveningTotal,
+                'totalLitres' => $totalLitres,
+                'totalPrice' => $totalPrice,
+            ]);
+
             return response()->json([
                 'result' => '1',
-                'data' => $response,
+                'data' => [$response],
                 'message' => 'fetched'
             ]);
-        } else {
-            return response()->json([
-                'result' => '0',
-                'data' => [],
-                'message' => 'not found'
-            ]);
+            } else {
+            $response = $records->map(function ($record) {
+                return [
+                    'id' => (string) $record->id,
+                    'user_id' => (string) $record->user_id,
+                    'breed_id' => (string) $record->breed_id,
+                    'morning' => (string) $record->morning,
+                    'evening' => (string) $record->evening,
+                    'price' => (string) $record->price,
+                    'notes' => $record->notes,
+                    'records' => [
+                        'id' => (string) $record->breed->id,
+                        'user_id' => (string) $record->breed->user_id,
+                        'supply' => $record->breed->supply,
+                        'litres' => $record->breed->litres,
+                        'minimum_price' => $record->breed->minimum_price,
+                        'maximum_price' => $record->breed->maximum_price
+                    ]
+                ];
+            });
+
+            if ($records->isNotEmpty()) {
+                return response()->json([
+                    'result' => '1',
+                    'data' => [$response],
+                    'message' => 'fetched'
+                ]);
+            } else {
+                return response()->json([
+                    'result' => '0',
+                    'data' => [],
+                    'message' => 'not found'
+                ]);
+            }
         }
     }
     #13
@@ -854,6 +910,26 @@ class RegisterUser extends Controller
 
         $supplies = $query->paginate($perPage);
 
+        $response = $supplies->map(function ($supply) {
+            return [
+                'id' => (string) $supply->id,
+                'user_id' => (string) $supply->user_id,
+                'breed_id' => (string) $supply->breed_id,
+                'morning' => (string) $supply->morning,
+                'evening' => (string) $supply->evening,
+                'price' => (string) $supply->price,
+                'notes' => $supply->notes,
+                'supply' => [
+                    'id' => (string) $supply->breed->id,
+                    'user_id' => (string) $supply->breed->user_id,
+                    'supply' => $supply->breed->supply,
+                    'litres' => $supply->breed->litres,
+                    'minimum_price' => $supply->breed->minimum_price,
+                    'maximum_price' => $supply->breed->maximum_price
+                ]
+            ];
+        });
+
         if ($supplies->isNotEmpty()) {
             return response()->json([
                 'result' => '1',
@@ -867,5 +943,345 @@ class RegisterUser extends Controller
                 'message' => 'not found'
             ]);
         }
+    }
+    #14
+    public function updateuser(Request $request,){
+        // Split the supply values into an array
+        $data=$request->all();
+        $id=$data['user_id'];
+        $supply = array_map('trim', explode(',', $request->input('supply'))); // Trim whitespace
+        $litres = array_map('trim', explode(',',$request->input('litres')));
+        $minimum_price=array_map('trim','explode'(',',$request->input('minimum_price')));
+        $maximum_price=array_map('trim',explode(',',$request->input('maximum_price')));
+        // dd($minimum_price);
+
+        // Base validation rules
+        $rules = [
+            'name' => 'required|string',
+            'role' => 'required|in:1,2',
+            'gender' => 'required|in:1,2',
+            'dob' => 'required|string',
+            'address' => 'required|string',
+            'email' => 'required|email|unique:users,email,'.$id,
+            'phone' => 'required|string|unique:users,phone,'.$id,
+            'supply'=>'required|string',
+            'minimum_price'=>'required|string',
+            'maximum_price'=>'required|string',
+            'payload'=>'required',
+            'photo' => 'nullable|string',
+        ];
+
+        // Additional validation rules based on role and supply values
+        if ($request->role == 1) { // Farmer
+
+            unset($rules['payload']);
+
+            if (in_array('1', $supply) && in_array('2', $supply)) {
+                // Both cow and buffalo
+                // dd(1);
+                if (count($supply) > 2) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'enter only cow and buffalo.'], 422);
+                }
+                if (count($litres) < 2 && count($minimum_price) < 2 && count($maximum_price) < 2) {
+
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'litres, minimum price, and maximum price fields should have values for both cow and buffalo.'], 422);
+                }
+                if (count($litres) < 2 ) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'litres fields should have values for both cow and buffalo.'], 422);
+                }
+                if (count($minimum_price) < 2) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum Price fields should have values for both cow and buffalo.'], 422);
+                }
+                if (count($maximum_price) < 2) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'maximum price fields should have values for both cow and buffalo.'], 422);
+                }
+                elseif(!in_array('1', $supply) && !in_array('2', $supply)){
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'supply values contain cow or buffalo.'], 422);
+                }
+                $rules['litres'] = 'required|string';
+                $rules['minimum_price'] = 'required|string';
+                $rules['maximum_price'] = 'required|string';
+            }
+            elseif (in_array('1', $supply)) {
+                // Only cow
+                // dd(1);
+                if (count($supply) > 1) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'buffalo values required .'], 422);
+                }
+                if (count($litres) < 1 && count($minimum_price) < 1 && count($maximum_price) < 1) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'litres, minimum price, and maximum price fields should have values for cow.'], 422);
+                }
+                if (empty($litres[0])) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'litres fields are required for cow.'], 422);
+                }
+                if(empty($minimum_price[0]) ){
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum price fields are required for cow.'], 422);
+                }
+                if(empty($maximum_price[0]) ){
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'maximum price fields are required for cow.'], 422);
+                }
+                if (count($litres) > 1 || count($minimum_price) > 1 || count($maximum_price) > 1) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'buffalo supply required.'], 422);
+                }
+
+                $rules['litres'] = 'required|string';
+                $rules['minimum_price'] = 'required|string';
+                $rules['maximum_price'] = 'required|string';
+            }
+            elseif (in_array('2', $supply)) {
+                // Only buffalo
+                if (count($litres) < 1 && count($minimum_price) < 1 && count($maximum_price) < 1) {
+                    return response()->json(['message' => 'litres, minimum Price, and maximum price fields should have values for buffalo.'], 422);
+                }
+                if (empty($litres[0])) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'litres fields are required for buffalo.'], 422);
+                }
+                if (empty($minimum_price[0])) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum price fields are required for buffalo.'], 422);
+                }
+                if (empty($maximum_price[0])) {
+                    return response()->json(['result'=>'0', 'data'=>[], 'message' => 'maximum price fields are required for buffalo.'], 422);
+                }
+                if (count($litres) > 1 || count($minimum_price) > 1 || count($maximum_price) > 1) {
+
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'buffalo fields only required.'], 422);
+                }
+                $rules['litres'] = 'required|string';
+                $rules['minimum_price'] = 'required|string';
+                $rules['maximum_price'] = 'required|string';
+            }
+            elseif(!in_array('1',$supply)){
+                return response()->json(['result'=>'0', 'data'=>[],'message'=>'supply field must contain for cow']);
+            }
+            elseif(!in_array('2',$supply)){
+                // dd(1);
+                return response()->json(['result'=>'0', 'data'=>[],'message'=>'supply field must contain for buffalo']);
+            }
+        }
+        if ($request->role == 2) { // Milkman
+            $rules['payload']='required|in:1,2,3';
+
+            if (in_array('1', $supply) && in_array('2', $supply)) {
+                // Both cow and buffalo
+                if (count($minimum_price) < 2 && count($maximum_price) < 2) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum price, and maximum price fields should have values for both cow and buffalo.'], 422);
+                }
+                if (count($minimum_price) < 2) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum Price fields should have values for both cow and buffalo.'], 422);
+                }
+                if (count($maximum_price) < 2) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'maximum Price fields should have values for both cow and buffalo.'], 422);
+                }
+                unset($rules['litres']);
+                $rules['minimum_price'] = 'required|string';
+                $rules['maximum_price'] = 'required|string';
+            } elseif (in_array('1', $supply)) {
+                // Only cow
+                // dd(1);
+                if (count($minimum_price) < 1 && count($maximum_price) < 1) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum Price, and maximum Price fields should have values for cow.'], 422);
+                }
+                if(empty($minimum_price[0]) ){
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum price fields are required for cow.'], 422);
+                }
+                if(empty($maximum_price[0]) ){
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'maximum price fields are required for cow.'], 422);
+                }
+                unset($rules['litres']);
+                $rules['minimum_price'] = 'required|string';
+                $rules['maximum_price'] = 'required|string';
+            }
+            elseif (in_array('2', $supply)) {
+                // Only buffalo
+                if (count($minimum_price) < 1 && count($maximum_price) < 1) {
+                    return response()->json(['message' => 'minimum price, and maximum price fields should have values for buffalo.'], 422);
+                }
+                if (empty($minimum_price[0])) {
+                    return response()->json(['result'=>'0', 'data'=>[],'message' => 'minimum price fields are required for buffalo.'], 422);
+                }
+                if (empty($maximum_price[0])) {
+                    return response()->json(['result'=>'0', 'data'=>[], 'message' => 'maximum price fields are required for buffalo.'], 422);
+                }
+                unset($rules['litres']);
+                $rules['minimum_price'] = 'required|string';
+                $rules['maximum_price'] = 'required|string';
+            }
+            elseif(!in_array('1',$supply)){
+                return response()->json(['result'=>'0', 'data'=>[],'message'=>'supply field must contain for cow']);
+            }
+            elseif(!in_array('2',$supply)){
+                // dd(1);
+                return response()->json(['result'=>'0', 'data'=>[],'message'=>'supply field must contain for buffalo']);
+            }
+
+        }
+
+
+        // Validate the request
+        $validator = Validator::make($request->all(), $rules);
+        // dd($litres);
+
+        $validator->after(function ($validator) use ($minimum_price, $maximum_price) {
+            foreach ($minimum_price as $index => $minPrice) {
+                if (isset($maximum_price[$index]) && $minPrice > $maximum_price[$index]) {
+                    $validator->errors()->add('minimum_price', 'minimum price should not be greater than maximum price ' . $index);
+                    $validator->errors()->add('maximum_price', 'maximum price should not be less than minimum price ' . $index);
+                }
+            }
+        });
+
+        if ($validator->fails()) {
+            $errors = [];
+            foreach ($validator->errors()->getMessages() as $field => $messages) {
+                $errors[$field] = $messages[0];
+            }
+            return response()->json(['result' => '0', 'data' => [], 'message' => str_replace(",","|",implode(",",$validator->errors()->all()))], 422);
+        }
+
+        $users=User::with('breeds')->find($id);
+        if(!$users){
+            return response()->json(['result'=>'0','data'=>[],'message'=>'user not found']);
+        }
+
+        // Process the data
+        $data = $request->all();
+        if ($request->role == 1) {
+            unset($data['payload']);
+        }
+        if ($request->role == 2) {
+            unset($data['litres']);
+        }
+
+        //Process Role
+        if($data['role'] == 1){
+            $data['role']='Farmer';
+        }elseif($data['role']==2){
+            $data['role']='Milkman';
+        }
+
+        //Process Gender
+        if($data['gender'] == 1){
+            $data['gender']='Male';
+        }elseif($data['gender']==2){
+            $data['gender']='Female';
+        }
+
+        //Process Supply
+        $breed=[];
+        foreach ($supply as $supplies) {
+            if ($supplies == 1) {
+                $breed[] = 'Cow';
+            } elseif ($supplies == 2) {
+                $breed[] = 'Buffalo';
+            }
+        }
+        $data['supply']=implode(',',$breed);
+        // dd($data['supply']);
+
+        // Handle profile image
+        $base64image = $data['photo'] ?? null;
+        if ($base64image) {
+            // Delete old photo if it exists
+            if ($users->profile_image && $users->profile_image !== 'male.jpg' && $users->profile_image !== 'female.jpg') {
+                $oldImagePath = storage_path('app/public/profile_images/' . $users->profile_image);
+                if (file_exists($oldImagePath)) {
+                    unlink($oldImagePath);
+                }
+            }
+
+            $image = base64_decode($base64image);
+            $fileName = 'profile_' .'user'. $users->id . '_' . '.jpg';
+
+            $filePath = storage_path('app/public/profile_images/' . $fileName);
+            if (file_put_contents($filePath, $image)) {
+                $imageUrl = asset('storage/profile_images/' . $fileName);
+            } else {
+                return response()->json(['result' => '0', 'data' => [], 'message' => 'Failed to save the image'], 500);
+            }
+        } else {
+            $defaultImage = $data['gender'] == 'Male' ? 'male.jpg' : 'female.jpg';
+            $imageUrl = asset('storage/profile_images/' . $defaultImage);
+            $fileName = $defaultImage;
+        }
+        // dd($fileName);
+
+        // Payload
+        if ($data['role'] == 'Milkman') {
+            $payloadMapping = [
+                1 => 'Weekly',
+                2 => '15 Days',
+                3 => 'Monthly',
+            ];
+            $data['payload'] = $payloadMapping[$data['payload']] ?? '';
+        } else if($data['role'] =='Farmer') {
+            $data['payload'] = '';
+        }
+
+        // Convert dob to timestamp if necessary
+        if (!is_numeric($data['dob'])) {
+            $timestamp = strtotime($data['dob']);
+            $data['dob'] = (string)($timestamp * 1000);
+        } else {
+            // If already a timestamp, ensure it's in milliseconds
+            if (strlen($data['dob']) == 10) {
+                $data['dob'] = (string)($data['dob'] * 1000);
+            }
+        }
+        // dd($fileName);
+        // / Update user details
+        $users->update([
+            'name' => $request->input('name'),
+            'role' => $data['role'],
+            'gender' => $data['gender'],
+            'dob' => $data['dob'],
+            'address' => $data['address'],
+            'email' => $data['email'],
+            'phone' => $data['phone'],
+            'payload'=>$data['payload'],
+            'profile_image'=>$fileName
+        ]);
+
+        // dd($users->breeds);
+        foreach($breed as $index => $breeding){
+            $breeddata=[
+                'user_id' => $users->id,
+                'supply' => $breeding,
+                'litres' => $litres[$index] ?? '',
+                'minimum_price' => $minimum_price[$index] ?? '',
+                'maximum_price' => $maximum_price[$index] ?? '',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+            $existingbreed=Breed::where('user_id',$id)->where('supply',$breeding)->first();
+            if($existingbreed){
+                $existingbreed->update($breeddata);
+            }
+            else{
+                Breed::create($existingbreed);
+            }
+        }
+        $response=[
+            'name' => $users->name,
+            'role' => $users->role,
+            'gender' => $users->gender,
+            'dob' => $users->dob,
+            'address' => $users->address,
+            'email' => $users->email,
+            'phone' => $users->phone,
+            'payload'=>$users->payload,
+            'supply'=>$data['supply'],
+            'minimum_price'=>$data['maximum_price'],
+            'maximum_price'=>$data['minimum_price'],
+            'payload'=>$data['payload'],
+            'profile_image'=>$imageUrl
+
+        ];
+
+        return response()->json([
+            'result' => '1',
+            'data' => $response,
+            'message' => 'User updated successfully'
+        ]);
+
     }
 }
