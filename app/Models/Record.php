@@ -27,6 +27,7 @@ class Record extends Model
         return $this->belongsTo(User::class,'id');
     }
     public function breed(){
-        return $this->belongsTo(Breed::class,'id');
+        return $this->belongsTo(Breed::class);
     }
+
 }

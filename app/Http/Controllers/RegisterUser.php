@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Breed;
 use App\Models\Record;
 use App\Models\Supply;
+use App\Models\Transaction;
 use App\Models\WithdrawSupply;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -423,14 +424,14 @@ class RegisterUser extends Controller
         $rules=[
             'morning'=>'required|integer',
             'evening'=>'required|integer',
-            'price'=>'required|integer'
+            'price'=>'nullable|integer'
         ];
 
         if(in_array('1',$breed) && in_array('2',$breed)){
-            if(count($breed)>2 || count($morning)>2 || count($evening)>2 || count($price)>2){
+            if(count($breed)>2 || count($morning)>2 || count($evening)>2 ){
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter only cow and buffalo records']);
             }
-            if(count($breed)<2 || count($morning)<2 || count($evening)<2 || count($price)<2){
+            if(count($breed)<2 || count($morning)<2 || count($evening)<2 ){
                 dd(count($breed)<2);
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter both cow and buffalo records']);
             }
@@ -440,13 +441,13 @@ class RegisterUser extends Controller
 
             $rules['morning']='required|string';
             $rules['evening']='required|string';
-            $rules['price']='required|string';
+            $rules['price']='nullable|string';
         }
         elseif(in_array('1',$breed)){
-            if(count($breed)>1 || count($morning)>1 || count($evening)>1 || count($price)>1){
+            if(count($breed)>1 || count($morning)>1 || count($evening)>1){
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter only cow records']);
             }
-            if(empty($morning[0]) || empty($evening[0]) || empty($price[0])){
+            if(empty($morning[0]) || empty($evening[0])){
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter cow records']);
             }
             elseif(!in_array('1',$breed)){
@@ -454,13 +455,13 @@ class RegisterUser extends Controller
             }
             $rules['morning']='required|string';
             $rules['evening']='required|string';
-            $rules['price']='required|string';
+            $rules['price']='nullable|string';
         }
         elseif(in_array('2',$breed)){
-            if(count($breed)>1 || count($morning)>1 || count($evening)>1 || count($price)>1){
+            if(count($breed)>1 || count($morning)>1 || count($evening)>1){
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter only buffalo records']);
             }
-            if(empty($morning[0]) || empty($evening[0]) || empty($price[0])){
+            if(empty($morning[0]) || empty($evening[0]) ){
                 return response()->json(['result'=>'0','data'=>[],'message'=>'Enter buffalo records']);
             }
             elseif(!in_array('2',$breed)){
@@ -468,26 +469,35 @@ class RegisterUser extends Controller
             }
             $rules['morning']='required|string';
             $rules['evening']='required|string';
-            $rules['price']='required|string';
+            $rules['price']='nullable|string';
         }
         $validator=Validator::make($data,$rules);
 
         if($validator->fails()){
             return response()->json(['result'=>'0','data'=>[],'message'=> str_replace(",","|",implode(",",$validator->errors()->all()))]);
         }
+        $breeds=[];
+        foreach($breed as $breedtype){
+            if($breedtype=='1'){
+                $breeds[]='Cow';
+            }
+            if($breedtype=='2'){
+                $breeds[]='Buffalo';
+            }
+        }
 
         $user=User::with('breeds')->findOrFail($data['user_id']);
-        // dd($breed);
+        // dd($user);
         foreach ($breed as $index => $breedType) {
 
-            $breedRecord = $user->breeds->firstWhere('supply', $breedType == '1' ? 'Cow' : 'Buffalo');
+            $breedRecord = $user->breeds->firstWhere('supply', $breeds[$index]);
+            // dd($breedRecord);
             if($breedRecord){
                 $today = now()->startOfDay();
                 $existingRecord = Record::where('user_id',$data['user_id'])
                                 ->where('breed_id',$breedRecord->id)
                                 ->whereDate('created_at', $today)
                                 ->first();
-
                 if($existingRecord){
                     $days=now()->diffInDays($existingRecord->created_at);
 
@@ -497,24 +507,39 @@ class RegisterUser extends Controller
                     $existingRecord->update([
                         'morning' => $morning[$index] ?? $existingRecord->morning,
                         'evening' => $evening[$index] ?? $existingRecord->evening,
-                        'price' => $price[$index] ?? $existingRecord->price
+                        'price' => isset($price[$index]) && $price[$index] !== '' ? (int) $price[$index] : $existingRecord->price
                     ]);
+                    $recordSummary = [
+                        'breed' => $breeds[$index],
+                        'morning' => $morning[$index],
+                        'evening' => $evening[$index],
+                        'price' =>(string) isset($price[$index]) && $price[$index] !== '' ? (string) $price[$index] : (string) $existingRecord->price
+                    ];
                 }
                 else{
+                    // dd($breedType);
+                    $default=Breed::where('user_id',$data['user_id'])
+                        ->where('supply',$breeds[$index])->first();
                     Record::create([
                         'user_id' => $data['user_id'],
                         'breed_id' => $breedRecord->id,
                         'morning' => $morning[$index] ?? '',
                         'evening' => $evening[$index] ?? '',
-                        'price' => $price[$index] ?? ''
+                        'price' => (string) isset($price[$index]) && $price[$index] !== '' ? (string) $price[$index] : (string) $default->maximum_price
                     ]);
+                    $recordSummary = [
+                        'breed' => $breeds[$index],
+                        'morning' => $morning[$index],
+                        'evening' => $evening[$index],
+                        'price' => (string) isset($price[$index]) && $price[$index] !== '' ? (string) $price[$index] : (string) $default->maximum_price
+                    ];
                 }
             }
             elseif(!$breedRecord){
                 return response()->json(['result' => '0', 'data' => [], 'message' => 'No Records found']);
             }
         }
-        return response()->json(['result' => '1', 'data' => [$data], 'message' => 'Records saved']);
+        return response()->json(['result' => '1', 'data' => [$recordSummary], 'message' => 'Records saved']);
     }
     #7
     public function notes(Request $request) {
@@ -610,7 +635,7 @@ class RegisterUser extends Controller
         $data=$request->all();
         $farmer_id=$data['farmer_id'];
         $milkman_id=$data['milkman_id'];
-        $users=User::where('id',$farmer_id)->where('id',$milkman_id)->get();
+
         $morning = array_map('trim', explode(',', $data['morning']));
         $evening = array_map('trim', explode(',', $data['evening']));
         $price = array_map('trim', explode(',', $data['price']));
@@ -618,17 +643,17 @@ class RegisterUser extends Controller
         $rules=[
             'morning'=>'required',
             'evening'=>'required',
-            'price'=>'required'
+            'price'=>'nullable'
         ];
         if(in_array('1',$breed)){
             $rules['morning']='required';
             $rules['evening']='required';
-            $rules['price']='required';
+            $rules['price']='nullable';
         }
         if(in_array('2',$breed)){
             $rules['morning']='required';
             $rules['evening']='required';
-            $rules['price']='required';
+            $rules['price']='nullable';
         }
 
         $validator=Validator::make($data,$rules);
@@ -636,10 +661,20 @@ class RegisterUser extends Controller
             return response()->json(['result' => '0', 'data' => [], 'message' => str_replace(",", "|", implode(",", $validator->errors()->all()))], 422);
         }
         // $user = User::with('breeds', 'records')->where('id', $data['user_id'])->firstOrFail();
+        $breeds=[];
+        foreach ($breed as $breedtype){
+            if($breedtype == '1'){
+                $breeds[]='Cow';
+            }
+            if($breedtype == '2'){
+                $breeds[]='Buffalo';
+            }
+        }
 
         foreach($breed as $index => $breedType){
-            $supplyType = $breedType == '1' ? 'cow' : 'Buffalo';
+            $supplyType = $breeds[$index];
             $breedRecord = Breed::where('supply', $supplyType)->firstorFail();
+
             if($breedRecord){
                 $today = now()->startOfDay();
                 $existingRecord=Supply::where('farmer_id',$data['farmer_id'])
@@ -648,13 +683,14 @@ class RegisterUser extends Controller
                                         ->whereDate('created_at',$today)
                                         ->first();
 
-            $morningValue = (string) isset($morning[$index]) ? (float) $morning[$index] : 0;
-            $eveningValue =(string) isset($evening[$index]) ? (float) $evening[$index] : 0;
-            $priceValue = (string) isset($price[$index]) ? (float) $price[$index] : 0;
-
-            $totalValue = $morningValue + $eveningValue; // Calculate total
+            // $totalValue = $morningValue + $eveningValue; // Calculate total
 
             if ($existingRecord) {
+            $morningValue = (string) isset($morning[$index]) ? (float) $morning[$index] : 0;
+            $eveningValue =(string) isset($evening[$index]) ? (float) $evening[$index] : 0;
+            $totalvalue=(string) $morningValue + $eveningValue;
+            $priceValue = isset($price[$index]) && $price[$index] !== '' ? (int) $price[$index] : $existingRecord->price;
+            $amount=$totalvalue * $priceValue;
                 $days = now()->diffInDays($existingRecord->created_at);
 
                 if ($days > 15) {
@@ -668,44 +704,46 @@ class RegisterUser extends Controller
                 $existingRecord->update([
                     'morning' => $morningValue,
                     'evening' => $eveningValue,
-                    'price' => $priceValue,
-                    'total' => $totalValue // Update total
+                    'price' => $amount,
+
                 ]);
+                $recordSummary = [
+                    'breed' => $breeds[$index],
+                    'morning' => (string) $morningValue,
+                    'evening' => (string) $eveningValue,
+                    'price' => (string) $amount
+                ];
             } else {
                 // dd($breedRecord->id);
+                $default=Record::where('user_id',$farmer_id)->first();
+                $morningValue = (string) isset($morning[$index]) ? (float) $morning[$index] : 0;
+                $eveningValue =(string) isset($evening[$index]) ? (float) $evening[$index] : 0;
+                $totalvalue=(string) $morningValue + $eveningValue;
+                $price=(string) isset($price[$index]) && $price[$index] !== '' ? (string) $price[$index] : (string) $default->price;
+                $amount=$totalvalue * $price;
+                // dd($default->maximum_price);
                 Supply::create([
                     'farmer_id' => $data['farmer_id'],
                     'milkman_id' => $data['milkman_id'],
                     'breed_id' => $breedRecord->id,
                     'morning' => $morningValue,
                     'evening' => $eveningValue,
-                    'price' => $priceValue,
-                    'total' => $totalValue // Store total
+                    'total'=>$totalvalue,
+                    'price' => $amount
                 ]);
+                $recordSummary = [
+                    'breed' => $breeds[$index],
+                    'morning' =>(string) $morningValue,
+                    'evening' =>(string) $eveningValue,
+                    'price' => (string) $amount
+                ];
             }
         }
         }
-        $breeds='';
-        foreach ($breed as $supplies) {
-            if ($supplies == 1) {
-                $breeds = 'Cow';
-            } elseif ($supplies == 2) {
-                $breeds= 'Buffalo';
-            }
-        }
-        $data['supply']=$breeds;
-
-        $response=[
-        'breed'=>$data['supply'],
-        'morning' => (string) $morningValue,
-        'evening' => (string) $eveningValue,
-        'price' => (string) $priceValue,
-        'total' => (string) $totalValue
-        ];
 
         return response()->json([
             'result' => '1',
-            'data' => [$response],
+            'data' => [$recordSummary],
             'message' => 'Supply records updated successfully'
         ], 200);
     }
@@ -781,25 +819,35 @@ class RegisterUser extends Controller
                 $breed[]='Buffalo';
             }
         }
-
+        // dd($breed);
         $perPage = 7;
 
         $currentDate = now();
         $startOfMonth = $currentDate->copy()->startOfMonth();
         $endOfMonth = $currentDate->copy()->endOfMonth();
-
+        $startOfWeek = $currentDate->copy()->startOfWeek();
+        $endOfWeek = $currentDate->copy()->endOfWeek();
         $startDate = $startOfMonth->copy()->subDays(7)->startOfDay();
         $endDate = $endOfMonth->copy()->endOfDay();
+
+        $isEndOfWeek = $currentDate->greaterThanOrEqualTo($endOfWeek);
 
         // Fetch records within the date range and belonging to specified user IDs
         $query = Record::with('breed')
         ->whereIn('user_id', $ids)
         ->whereHas('breed', function($query) use ($breed) {
             $query->where('supply', $breed);
-        })
-        ->whereBetween('created_at', [$startDate, $endDate]);
+        });
+        if ($isEndOfWeek) {
+            // Fetch records for the entire month
+            $query->whereBetween('created_at', [$startOfMonth, $endOfMonth]);
+        } else {
+            // Fetch records for the last week
+            $query->whereBetween('created_at', [$startOfWeek, $endOfWeek]);
+        }
 
         $records = $query->paginate($perPage);
+        // dd($records);
         // Paginate the records
         if ($users->role == 'Milkman') {
             $morningTotal = $records->sum('morning');
@@ -808,64 +856,31 @@ class RegisterUser extends Controller
             $price = $maximum_price; // Assuming a fixed price per litre
             $totalPrice = $totalLitres * $price;
 
-            $response = $records->map(function ($record) {
-                return [
-                    'id' => (string) $record->id,
-                    'user_id' => (string) $record->user_id,
-                    'breed_id' => (string) $record->breed_id,
-                    'morning' => (string) $record->morning,
-                    'evening' => (string) $record->evening,
-                    'price' => (string) $record->price,
-                    'notes' => $record->notes,
-                    'records' => [
-                        'id' => (string) $record->breed->id,
-                        'user_id' => (string) $record->breed->user_id,
-                        'supply' => $record->breed->supply,
-                        'litres' => $record->breed->litres,
-                        'minimum_price' => $record->breed->minimum_price,
-                        'maximum_price' => $record->breed->maximum_price
-                    ],
+            $datas = $records->items();
+            // dd($datas);
 
+            $respone=[];
+            foreach($datas as $index => $recordings){
+                $response=[
+                'supply'=>$breed[$index],
+                'user_id' => (string) $recordings->user_id,
+                'breed_id' => (string) $recordings->breed_id,
+                'morning' => (string) $recordings->morning,
+                'evening' => (string) $recordings->evening,
+                'price' => (string) $recordings->price,
+                'notes' => (string) $recordings->notes,
+                'morningTotal' => (string) $morningTotal,
+                    'eveningTotal' =>(string) $eveningTotal,
+                    'totalLitres' =>(string) $totalLitres,
+                    'totalPrice' =>(string) $totalPrice,
                 ];
 
-            });
-            $response->put('totals', [
-                'morningTotal' => $morningTotal,
-                'eveningTotal' => $eveningTotal,
-                'totalLitres' => $totalLitres,
-                'totalPrice' => $totalPrice,
-            ]);
+            }
 
-            return response()->json([
-                'result' => '1',
-                'data' => [$response],
-                'message' => 'fetched'
-            ]);
-            } else {
-            $response = $records->map(function ($record) {
-                return [
-                    'id' => (string) $record->id,
-                    'user_id' => (string) $record->user_id,
-                    'breed_id' => (string) $record->breed_id,
-                    'morning' => (string) $record->morning,
-                    'evening' => (string) $record->evening,
-                    'price' => (string) $record->price,
-                    'notes' => $record->notes,
-                    'records' => [
-                        'id' => (string) $record->breed->id,
-                        'user_id' => (string) $record->breed->user_id,
-                        'supply' => $record->breed->supply,
-                        'litres' => $record->breed->litres,
-                        'minimum_price' => $record->breed->minimum_price,
-                        'maximum_price' => $record->breed->maximum_price
-                    ]
-                ];
-            });
-
-            if ($records->isNotEmpty()) {
+            if (!empty ($response)) {
                 return response()->json([
                     'result' => '1',
-                    'data' => [$response],
+                    'data' => $response,
                     'message' => 'fetched'
                 ]);
             } else {
@@ -875,24 +890,54 @@ class RegisterUser extends Controller
                     'message' => 'not found'
                 ]);
             }
+            } else {
+                $datas = $records->items();
+                // dd($datas);
+
+                $respone=[];
+                foreach($datas as $index => $recordings){
+                    $response=[
+                    'supply'=>$breed[$index],
+                    'user_id' => (string) $recordings->user_id,
+                    'breed_id' => (string) $recordings->breed_id,
+                    'morning' => (string) $recordings->morning,
+                    'evening' => (string) $recordings->evening,
+                    'price' => (string) $recordings->price,
+                    'notes' => (string) $recordings->notes,
+                    ];
+                }
+                if (!empty ($response)) {
+                    return response()->json([
+                        'result' => '1',
+                        'data' => [$response],
+                        'message' => 'fetched'
+                    ]);
+                } else {
+                    return response()->json([
+                        'result' => '0',
+                        'data' => [],
+                        'message' => 'not found'
+                    ]);
+                }
         }
     }
     #13
-    public function supplyrecords(Request $request){
+    public function supplyrecords(Request $request) {
         $data = $request->all();
-        $ids = array_map('trim', explode(',', $data['user_id']));
-        $supply=array_map('trim',explode(',',$data['breed']));
-        $breed=[];
-        foreach($supply as $breeds){
-            if($breeds=='1'){
-                $breed[]='Cow';
+        $user1 = array_map('trim', explode(',', $data['user_id_1']));
+        $user2 = array_map('trim', explode(',', $data['user_id_2']));
+        $supply = array_map('trim', explode(',', $data['breed']));
+        $breed = [];
+        foreach ($supply as $breeds) {
+            if ($breeds == '1') {
+                $breed[] = 'Cow';
             }
-            if($breeds=='2'){
-                $breed[]='Buffalo';
+            if ($breeds == '2') {
+                $breed[] = 'Buffalo';
             }
         }
 
-        $perPage=7;
+        $perPage = 7;
 
         $currentDate = now();
         $endOfMonth = $currentDate->copy()->endOfMonth();
@@ -901,39 +946,50 @@ class RegisterUser extends Controller
         // Calculate the start date for the last 7 days of the current month
         $startDate = $startOfMonth->copy()->subDays(7)->startOfDay();
         $endDate = $endOfMonth->copy()->endOfDay();
-        $query = Supply::with('breed')
-        ->whereIn('farmer_id', $ids)
-        ->whereHas('breed', function($query) use ($breed) {
-        $query->where('supply', $breed);
-        })
-        ->whereBetween('created_at', [$startDate, $endDate]);
 
+        $query = Supply::with('breed')
+            ->whereIn('farmer_id', $user1)
+            ->whereIn('milkman_id', $user2)
+            ->whereHas('breed', function($query) use ($breed) {
+                $query->where('supply', $breed);
+            })
+            ->whereBetween('created_at', [$startDate, $endDate]);
+
+        $user = User::where('id', $user1)->first();
         $supplies = $query->paginate($perPage);
 
-        $response = $supplies->map(function ($supply) {
-            return [
-                'id' => (string) $supply->id,
-                'user_id' => (string) $supply->user_id,
-                'breed_id' => (string) $supply->breed_id,
-                'morning' => (string) $supply->morning,
-                'evening' => (string) $supply->evening,
-                'price' => (string) $supply->price,
-                'notes' => $supply->notes,
-                'supply' => [
-                    'id' => (string) $supply->breed->id,
-                    'user_id' => (string) $supply->breed->user_id,
-                    'supply' => $supply->breed->supply,
-                    'litres' => $supply->breed->litres,
-                    'minimum_price' => $supply->breed->minimum_price,
-                    'maximum_price' => $supply->breed->maximum_price
-                ]
-            ];
-        });
+        $datas = $supplies->items();
+        $overall_total = $supplies->sum('total');
+        $total_price = $supplies->sum('price');
 
-        if ($supplies->isNotEmpty()) {
+        $response = [];
+
+        foreach ($datas as $data) {
+            $item = [
+                'breed_id' => (string) $data->breed_id,
+                'morning' => (string) $data->morning,
+                'evening' => (string) $data->evening,
+                'price' => (string) $data->price,
+                'total_litres' => (string) $data->total,
+            ];
+
+            if ($user->role == 'Farmer') {
+                $milkman = User::where('id', $user2)->first();
+                $item['farmer_id'] = (string) $data->farmer_id;
+                $item['milkman_name'] = $milkman->name;
+            } else if ($user->role == 'Milkman') {
+                $farmer = User::where('id', $user2)->first();
+                $item['milkman_id'] = (string) $data->milkman_id;
+                $item['farmer_name'] = $farmer->name;
+            }
+
+            $response[] = $item;
+        }
+
+        if (!empty($response)) {
             return response()->json([
                 'result' => '1',
-                'data' => $supplies->items(),
+                'data' => $response,'total_litres' => (string) $overall_total,'total_price' => (string) $total_price,
                 'message' => 'fetched'
             ]);
         } else {
@@ -1283,5 +1339,200 @@ class RegisterUser extends Controller
             'message' => 'User updated successfully'
         ]);
 
+    }
+    #15
+    public function createtransactions(Request $request){
+        $user1=User::where('id',$request->user_id_1)->first();
+        $user2=User::where('id',$request->user_id_2)->first();
+        if($user1->role=='Farmer'){
+            if($user2->role=='Milkman'){
+
+                    $supply_1=Supply::where('farmer_id',$request->user_id_1)->first();
+                    // dd($supply1);
+                    $supply_2=Supply::where('farmer_id',$request->user_id_2)->first();
+                    // dd($supply2);
+                    $total_litres_1 = $supply_1->morning + $supply_1->evening;
+                    $total_cost_1 = $supply_1->price * $total_litres_1;
+                    // dd($total_cost_1);
+                    $total_litres_2 = $supply_2->morning + $supply_2->evening;
+                    $total_cost_2 = $supply_2->price * $total_litres_2;
+
+                    if($total_cost_1==$total_cost_2){
+                        if($user2->payload=='Weekly'){
+                            $nextPaymentDate = now()->addWeek(); // Date one week from now
+                            $transactionrecord=Transaction::where('payout',$user2->payload)->first();
+                            if($transactionrecord){
+                                $today=now()->startOfDay();
+                                $existingtransaction=Transaction::where('farmer_id',$request->user_id_1)
+                                                    ->where('created_at',$today)
+                                                    ->first();
+                                if($existingtransaction){
+                                    dd(1);
+                                    $existingtransaction->update([
+                                        'milkman_id' => $user2->id,
+                                        'amount' =>(string) $total_cost_2,
+                                        'status' => 'Pending', // Or another status as needed
+                                        'payout' => 'Weekly',
+                                        'scheduled_for' => $nextPaymentDate,
+                                    ]);
+                                }
+                                else{
+                                    Transaction::create([
+                                        'farmer_id' => $user1->id, // Adjust according to your logic
+                                        'milkman_id' => $user2->id,
+                                        'amount' =>(string) $total_cost_2,
+                                        'status' => 'Pending', // Or another status as needed
+                                        'payout' => 'Weekly',
+                                        'scheduled_for' => $nextPaymentDate, // Assuming you have this column
+                                    ]);
+                                    $response=[
+                                        'amount' => $total_cost_2,
+                                        'status' => 'Pending', // Or another status as needed
+                                        'payout' => 'Weekly',
+                                        'scheduled_for' => $nextPaymentDate,
+                                    ];
+                                    return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
+                                    }
+                                }
+                            }
+                            if($user2->payload=='15 Days'){
+                                $nextPaymentDate = now()->addDays(15); // Date one week from now
+                                // Create a new transaction record
+                                $transactionrecord=Transaction::where('payout',$user2->payload)->first();
+                                Transaction::create([
+                                    'farmer_id' => $user1->id, // Adjust according to your logic
+                                    'milkman_id' => $user2->id,
+                                    'amount' =>(string) $total_cost_2,
+                                    'status' => 'Pending', // Or another status as needed
+                                    'payout' => 'Weekly',
+                                    'scheduled_for' => $nextPaymentDate, // Assuming you have this column
+                                ]);
+                                $response=[
+                                    'amount' => $total_cost_2,
+                                    'status' => 'Pending', // Or another status as needed
+                                    'payout' => 'Weekly',
+                                    'scheduled_for' => $nextPaymentDate,
+                                ];
+                                return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
+                            }
+                            if($user2->payload=='Monthly'){
+                                $nextPaymentDate = now()->addMonth(); // Date one week from now
+                                // Create a new transaction record
+                                Transaction::create([
+                                    'farmer_id' => $user1->id, // Adjust according to your logic
+                                    'milkman_id' => $user2->id,
+                                    'amount' =>(string) $total_cost_2,
+                                    'status' => 'Pending', // Or another status as needed
+                                    'payout' => 'Weekly',
+                                    'scheduled_for' => $nextPaymentDate, // Assuming you have this column
+                                ]);
+                                $response=[
+                                    'amount' => $total_cost_2,
+                                    'status' => 'Pending', // Or another status as needed
+                                    'payout' => 'Weekly',
+                                    'scheduled_for' => $nextPaymentDate,
+                                ];
+                                return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
+                        }
+                }
+                else{
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'supplied details are invalid']);
+                }
+            }
+        }
+    }
+    #16
+    public function transaction(Request $request){
+        $data=$request->all();
+        $user1=array_map('trim',explode(',',$data['user_id_1']));
+        $user2=array_map('trim',explode(',',$data['user_id_2']));
+        $status[]= $data['status'];
+        $paymentuser=User::where('id',$user2)->first();
+        if(!$paymentuser){
+            return response()->json(['result'=>'0','data'=>[],'message'=>'user not found']);
+        }
+        // dd($paymentuser->payload);
+        $action=[];
+        foreach($status as $statuses){
+            if($statuses=='1'){
+                $action[]='All';
+            }
+            if($statuses=='2'){
+                $action[]='Pending';
+            }
+            if($statuses=='3'){
+                $action[]='Recieved';
+            }
+            // dd($action);
+        }
+        if($paymentuser->role=='Milkman'){
+            if(in_array('All',$action)){
+                $alltransactions=Transaction::where('milkman_id',$user2)->first();
+                // dd($alltransactions);
+                if(!empty($alltransactions)){
+                    if($alltransactions->status=='Pending'){
+                        $photo=asset('storage/assets/pending.jpg');
+                    }
+                    if($alltransactions->status=='Recieved'){
+                        $photo=asset('storage/assets/money.png');
+                    }
+                    if($alltransactions->status=='Requested'){
+                        $photo=asset('storage/assets/user-avatar.png');
+                    }
+                    $response=[
+                        'action_flag'=>'All',
+                        'photo'=>$photo,
+                        "amount"=> (string) $alltransactions->amount,
+                        "status"=> (string) $alltransactions->status,
+                        "payout"=> (string) $alltransactions->payout,
+                        'date'=>Carbon::parse($alltransactions->created_at)->format('d-m-Y')
+                    ];
+                    return response()->json(['result'=>'1','data'=>[$response],'message'=>'fetched']);
+                }
+                else{
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'Transactions not found']);
+                }
+            }
+            if(in_array('Pending',$action)){
+                $transactions=Transaction::where('milkman_id',$user2)
+                        ->where('status',$action)
+                        ->first();
+                        if(!empty($transactions)){
+                            $response=[
+                                'action_flag'=>'Pending',
+                                'photo'=>asset('storage/assets/pending.jpg'),
+                                "amount"=> (string) $transactions->amount,
+                                "status"=> (string) $transactions->status,
+                                "payout"=> (string) $transactions->payout,
+                                'date'=>Carbon::parse($transactions->created_at)->format('d-m-Y'),
+                            ];
+                            return response()->json(['result'=>'1','data'=>[$response],'message'=>'fetched']);
+                        }
+                        else{
+                            return response()->json(['result'=>'0','data'=>[],'message'=>'Transactions not found']);
+                        }
+            }
+            if(in_array('Recieved',$action)){
+
+           $transactions=Transaction::where('milkman_id',$user2)
+                        ->where('status',$action)
+                        ->first();
+
+                if(!empty($transactions)){
+                    $response=[
+                        'action_flag'=>'Recieved',
+                        'photo'=>asset('storage/assets/money.png'),
+                        "amount"=> (string) $transactions->amount,
+                        "status"=> (string) $transactions->status,
+                        "payout"=> (string) $transactions->payout,
+                        'date'=>Carbon::parse($transactions->created_at)->format('d-m-Y')
+                    ];
+                    return response()->json(['result'=>'1','data'=>[$response],'message'=>'fetched']);
+                }
+                else{
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'Transactions not found']);
+                }
+            }
+        }
     }
 }

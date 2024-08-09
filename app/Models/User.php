@@ -44,6 +44,9 @@ class User extends Authenticatable
     public function withdrawsupplies(){
         return $this->hasMany(WithdrawSupply::class,'id');
     }
+    public function transactions(){
+        return $this->hasMany(Transaction::class);
+    }
     /**
      * The attributes that should be hidden for serialization.
      *

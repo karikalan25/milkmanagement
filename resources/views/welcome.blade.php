@@ -377,8 +377,7 @@
                                 <td>breed</td>
                                 <td>Yes</td>
                                 <td>1 (Cow) <br>
-                                    2 (Buffalo) <br>
-                                    1,2 (Cow, Buffalo) <br>
+                                    2 (Buffalo)<br>
                                 </td>
                             </tr>
                             <tr>
@@ -747,10 +746,17 @@
                             </tr>
                             <tr>
                                 <td>User Id</td>
-                                <td><input type="text" name="user_id" id="user_id"></td>
-                                <td>user_id</td>
+                                <td><input type="text" name="user_id_1" id="user_id_1"></td>
+                                <td>user_id_1</td>
                                 <td>Yes</td>
-                                <td>-</td>
+                                <td>Farmer Id or Milkman Id</td>
+                            </tr>
+                            <tr>
+                                <td>User Id 2</td>
+                                <td><input type="text" name="user_id_2" id="user_id_2"></td>
+                                <td>user_id_2</td>
+                                <td>Yes</td>
+                                <td>Farmer Id or Milkman Id</td>
                             </tr>
                             <tr>
                                 <td>Breed</td>
@@ -903,6 +909,107 @@
                                 <td>-</td>
                             </tr>
                             <tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Farmer and milkman Transactions API --}}
+    <fieldset>
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/createtransactions">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">14. Farmer and milkman create the transactions [ Farmer and Milkman ]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/createtransactions</div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>User Id</td>
+                                <td><input type="text" name="user_id_1" id="user_id_1"></td>
+                                <td>user_id_1</td>
+                                <td>Yes</td>
+                                <td>Farmer Id or Milkman Id</td>
+                            </tr>
+                            <tr>
+                                <td>User Id 2</td>
+                                <td><input type="text" name="user_id_2" id="user_id_2"></td>
+                                <td>user_id_2</td>
+                                <td>Yes</td>
+                                <td>Farmer Id or Milkman Id</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Farmer and milkman Transactions API --}}
+    <fieldset>
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/transaction">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">14. Farmer and milkman transactions [ Farmer and Milkman ]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/transaction</div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>User Id</td>
+                                <td><input type="text" name="user_id_1" id="user_id_1"></td>
+                                <td>user_id_1</td>
+                                <td>Yes</td>
+                                <td>Farmer Id or Milkman Id</td>
+                            </tr>
+                            <tr>
+                                <td>User Id 2</td>
+                                <td><input type="text" name="user_id_2" id="user_id_2"></td>
+                                <td>user_id_2</td>
+                                <td>Yes</td>
+                                <td>Farmer Id or Milkman Id</td>
+                            </tr>
+                            <tr>
+                                <td>Action Flag</td>
+                                <td><input type="text" name="status" id="status"></td>
+                                <td>status</td>
+                                <td>Yes</td>
+                                <td>1 (All) <br> 2(Pending) <br> 3(Recieved)</td>
+                            </tr>
                             <tr>
                                 <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
                             </tr>
