@@ -9,15 +9,12 @@ use App\Models\Connection;
 use App\Models\Farmersupply;
 use App\Models\Milkmansupply;
 use App\Models\Record;
-use App\Models\Supply;
 use App\Models\Transaction;
 use App\Models\WithdrawSupply;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Validator;
 
 class RegisterUser extends Controller
