@@ -6,31 +6,26 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Supply extends Model
+class Milkmansupply extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory,SoftDeletes;
 
     protected $fillable=[
-        'farmer_id',
-        'milkman_id',
-        'breed_id',
+        'reciever_id',
+        'supply_id',
+        'breed',
         'morning',
         'evening',
         'total',
-        'price',
+        'price'
     ];
-
     protected $hidden=[
         'created_at',
-        'deleted_at',
-        'updated_at'
+        'updated_at',
+        'deleted_at'
     ];
 
     public function user(){
-        return $this->belongsTo(User::class,'id');
+        return $this->belongsTo(User::class,'reciever_id');
     }
-    public function breed(){
-        return $this->belongsTo(Breed::class);
-    }
-
 }

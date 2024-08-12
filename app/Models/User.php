@@ -38,8 +38,17 @@ class User extends Authenticatable
     public function records(){
         return $this->hasMany(Record::class);
     }
-    public function supplies(){
-        return $this->hasMany(Supply::class,'id');
+    public function sentrequest(){
+        return $this->hasMany(Connection::class,'follower_id');
+    }
+    public function recievedrequest(){
+        return $this->hasMany(Connection::class,'following_id');
+    }
+    public function farmersupply(){
+        return $this->hasMany(Farmersupply::class);
+    }
+    public function milkmansupply(){
+        return $this->hasMany(Milkmansupply::class);
     }
     public function withdrawsupplies(){
         return $this->hasMany(WithdrawSupply::class,'id');

@@ -27,7 +27,5 @@ class Breed extends Model
     public function records(){
         return $this->hasMany(Record::class);
     }
-    public function supplies(){
-        return $this->hasMany(Supply::class);
-    }
+
 }

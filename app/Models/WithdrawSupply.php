@@ -10,16 +10,18 @@ class WithdrawSupply extends Model
     use HasFactory;
 
     protected $fillable=[
-        'farmer_id',
-        'milkman_id',
+        'user_1_id',
+        'user_2_id',
         'date',
         'withdraw',
         'description',
+        'status'
     ];
 
     protected $hidden=[
         'created_at',
-        'updated_at'
+        'updated_at',
+        'status'
     ];
 
     public function users(){

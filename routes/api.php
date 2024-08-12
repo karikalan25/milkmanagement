@@ -27,9 +27,19 @@ Route::get('/farmerdetails',[RegisterUser::class,'farmerdetails']);
 
 Route::get('/milkmandetails',[RegisterUser::class,'milkmandetails']);
 
-Route::post('/milksupply',[RegisterUser::class,'milksupply']);
+Route::post('/sendrequest',[RegisterUser::class,'sendrequest']);
 
-Route::post('/withdraw',[RegisterUser::class,'withdraw']);
+Route::post('/acceptrequest',[RegisterUser::class,'acceptrequest']);
+
+Route::post('/farmersupply',[RegisterUser::class,'farmersupply']);
+
+Route::post('/milkmansupply',[RegisterUser::class,'milkmansupply']);
+
+Route::post('/requestwithdraw',[RegisterUser::class,'requestwithdraw']);
+
+Route::post('/acceptwithdraw',[RegisterUser::class,'acceptwithdraw']);
+
+Route::post('/rejectwithdraw',[RegisterUser::class,'rejectwithdraw']);
 
 Route::get('/farmrecords',[RegisterUser::class,'farmrecords']);
 

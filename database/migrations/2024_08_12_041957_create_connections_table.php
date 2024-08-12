@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('withdraw_supplies', function (Blueprint $table) {
+        Schema::create('connections', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_1_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreignId('user_2_id')->references('id')->on('users')->onDelete('cascade');
-            $table->string('date');
-            $table->string('withdraw');
-            $table->string('description');
+            $table->foreignId('follower_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreignId('following_id')->references('id')->on('users')->onDelete('cascade');
             $table->string('status')->default('pending');
+            $table->softDeletes();
             $table->timestamps();
         });
     }
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('withdraw_supplies');
+        Schema::dropIfExists('connections');
     }
 };

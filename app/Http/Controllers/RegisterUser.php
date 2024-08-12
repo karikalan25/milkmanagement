@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Breed;
+use App\Models\Connection;
+use App\Models\Farmersupply;
+use App\Models\Milkmansupply;
 use App\Models\Record;
 use App\Models\Supply;
 use App\Models\Transaction;
@@ -13,6 +16,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Validator;
 
 class RegisterUser extends Controller
@@ -631,19 +636,149 @@ class RegisterUser extends Controller
         return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
     }
     #10
-    public function milksupply(Request $request){
-        $data=$request->all();
-        $farmer_id=$data['farmer_id'];
-        $milkman_id=$data['milkman_id'];
+    public function farmrecords(Request $request)
+    {
+        $data = $request->all();
+        $ids = array_map('trim', explode(',', $data['user_id']));
+        $supply = array_map('trim', explode(',', $data['breed']));
+        $users = User::with('breeds')->whereIn('id', $ids)->first();
 
-        $morning = array_map('trim', explode(',', $data['morning']));
-        $evening = array_map('trim', explode(',', $data['evening']));
-        $price = array_map('trim', explode(',', $data['price']));
+        if (!$users) {
+            return response()->json([
+                'result' => '0',
+                'data' => [],
+                'message' => 'not found'
+            ]);
+        }
+
+        $breeds = $users->breeds;
+        $maximum_price = $breeds->max('maximum_price');
+
+        $breed = [];
+        foreach ($supply as $breedId) {
+            if ($breedId == '1') {
+                $breed[] = 'Cow';
+            }
+            if ($breedId == '2') {
+                $breed[] = 'Buffalo';
+            }
+        }
+
+        $perPage = 7;
+        $currentDate = now();
+        $startOfMonth = $currentDate->copy()->startOfMonth();
+        $endOfMonth = $currentDate->copy()->endOfMonth();
+        $weeks = [];
+
+        for ($date = $startOfMonth; $date->lessThanOrEqualTo($endOfMonth); $date->addWeek()) {
+            $startOfWeek = $date->copy()->startOfWeek();
+            $endOfWeek = $date->copy()->endOfWeek()->min($endOfMonth);
+
+            // Fetch records for this week
+            $records = Record::with('breed')
+                ->whereIn('user_id', $ids)
+                ->whereHas('breed', function($query) use ($breed) {
+                    $query->whereIn('supply', $breed);
+                })
+                ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
+                ->paginate($perPage);
+
+            $weeks[] = $records;
+        }
+
+        // Prepare the response for each week
+        $response = [];
+        foreach ($weeks as $weekRecords) {
+            $morningTotal = $weekRecords->sum('morning');
+            $eveningTotal = $weekRecords->sum('evening');
+            $totalLitres = $morningTotal + $eveningTotal;
+            $totalPrice = $totalLitres * $maximum_price;
+
+            $data = $weekRecords->items();
+            foreach ($data as $index => $recordings) {
+                $response[] = [
+                    'supply' => $breed[$index],
+                    'user_id' => (string) $recordings->user_id,
+                    'breed_id' => (string) $recordings->breed_id,
+                    'morning' => (string) $recordings->morning,
+                    'evening' => (string) $recordings->evening,
+                    'price' => (string) $recordings->price,
+                    'notes' => (string) $recordings->notes,
+                    'morningTotal' => (string) $morningTotal,
+                    'eveningTotal' => (string) $eveningTotal,
+                    'totalLitres' => (string) $totalLitres,
+                    'totalPrice' => (string) $totalPrice,
+                ];
+            }
+        }
+
+        if (!empty($response)) {
+            return response()->json([
+                'result' => '1',
+                'data' => $response,
+                'message' => 'fetched'
+            ]);
+        } else {
+            return response()->json([
+                'result' => '0',
+                'data' => [],
+                'message' => 'not found'
+            ]);
+        }
+    }
+    #11
+    public function sendrequest(Request $request){
+        $follower_id=$request->follower_id;
+        $following_id=$request->following_id;
+        $data=$request->all();
+        $validator=Validator::make($data,[
+            'follower_id'=>'required',
+            'following_id'=>'required'
+        ]);
+        if($validator->fails()){
+            return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(',','|',implode(',',$validator->errors()->all()))]);
+        }
+        $connection=Connection::create([
+            'follower_id'=>$follower_id,
+            'following_id'=>$following_id,
+            'status'=>'pending'
+        ]);
+        $respone=[
+            'connection_id'=>$connection->id
+        ];
+        return response()->json(['result'=>'1','data'=>[$respone],'message'=>'request sent successfully']);
+    }
+    #12
+    public function acceptrequest(Request $request){
+        $connection=Connection::findorFail($request->connection_id);
+        $connection->update([
+            'status'=>'accepted'
+        ]);
+        // dd($connection->following_id);
+        $mutualconnection=Connection::where('follower_id',$connection->follower_id)
+                        ->where('following_id',$connection->following_id)
+                        ->where('status','accepted')
+                        ->exists();
+                        // dd($connection->following_id, $connection->follower_id, $mutualconnection);
+
+        if($mutualconnection){
+            return response()->json(['result'=>'1','data'=>[],'message'=>'request accepted successfully']);
+        }
+
+    }
+    #13
+     public function farmersupply(Request $request){
+        $data=$request->all();
+        $supply_id=$data['supply_id'];
+        $reciever_id=$data['reciever_id'];
+        $morning = $data['morning'];
+        $evening = $data['evening'];
+        $price =$data['price'];
         $breed=array_map('trim',explode(',',$data['breed']));
         $rules=[
             'morning'=>'required',
             'evening'=>'required',
-            'price'=>'nullable'
+            'price'=>'required',
         ];
         if(in_array('1',$breed)){
             $rules['morning']='required';
@@ -655,101 +790,383 @@ class RegisterUser extends Controller
             $rules['evening']='required';
             $rules['price']='nullable';
         }
-
         $validator=Validator::make($data,$rules);
         if($validator->fails()){
             return response()->json(['result' => '0', 'data' => [], 'message' => str_replace(",", "|", implode(",", $validator->errors()->all()))], 422);
         }
-        // $user = User::with('breeds', 'records')->where('id', $data['user_id'])->firstOrFail();
-        $breeds=[];
+        $breeds='';
         foreach ($breed as $breedtype){
             if($breedtype == '1'){
-                $breeds[]='Cow';
+                $breeds='Cow';
             }
             if($breedtype == '2'){
-                $breeds[]='Buffalo';
+                $breeds='Buffalo';
+            }
+        }
+        // dd($breeds);
+        $today=now()->startOfDay();
+        $existingRecord=Farmersupply::where('supply_id',$supply_id)
+                        ->where('reciever_id',$reciever_id)
+                        ->where('breed',$breeds)
+                        ->whereDate('created_at',$today)
+                        ->first();
+        // dd($existingRecord);
+        if($existingRecord){
+            $morninglitre=(string)$morning ? (float)$morning :0;
+            $eveninglitre=(string)$evening ? (float)$evening :0;
+            $totallitre=(string) $morninglitre + $eveninglitre;
+            $totalprice=$price && $price !== '' ? (int) $price : $existingRecord->price;
+            $amount = $totallitre * $totalprice;
+
+            $days=now()->diffInDays($existingRecord->created_at);
+
+            if($days>15){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'You can update the records only for 15 days']);
+            }
+            $existingRecord->update([
+                'morning'=>$morninglitre,
+                'evening'=>$eveninglitre,
+                'total'=>$totallitre,
+                'price'=>$amount
+            ]);
+            $response = [
+                'breed' => $breeds,
+                'morning' =>(string) $morninglitre,
+                'evening' =>(string) $eveninglitre,
+                'price' => (string) $amount
+            ];
+            return response()->json(['result'=>'1','data'=>[$response],'message'=>'Supply records updated']);
+        }
+        else{
+            $default=Record::where('user_id',$supply_id)->first();
+            $morninglitre=(string)$morning ? (float)$morning :0;
+            $eveninglitre=(string)$evening ? (float)$evening :0;
+            $totallitre=(string) $morninglitre + $eveninglitre;
+            $totalprice= (string) $price && $price !== '' ? (int) $price : $default->price;
+            $amount = $totallitre * $totalprice;
+
+            Farmersupply::create([
+                'supply_id'=>$supply_id,
+                'reciever_id'=>$reciever_id,
+                'breed'=>$breeds,
+                'morning'=>$morninglitre,
+                'evening'=>$eveninglitre,
+                'total'=>$totallitre,
+                'price'=>$amount
+            ]);
+            $response = [
+                    'breed' => $breeds,
+                    'morning' =>(string) $morninglitre,
+                    'evening' =>(string) $eveninglitre,
+                    'price' => (string) $amount
+                ];
+                return response()->json(['result'=>'1','data'=>[$response],'message'=>'Supply records created']);
+            }
+    }
+    #14
+    public function milkmansupply(Request $request){
+        $data=$request->all();
+        $supply_id=$data['supply_id'];
+        $reciever_id=$data['reciever_id'];
+        $morning = $data['morning'];
+        $evening = $data['evening'];
+        $price =$data['price'];
+        $breed=array_map('trim',explode(',',$data['breed']));
+        $rules=[
+            'morning'=>'required',
+            'evening'=>'required',
+            'price'=>'required',
+        ];
+        if(in_array('1',$breed)){
+            $rules['morning']='required';
+            $rules['evening']='required';
+            $rules['price']='nullable';
+        }
+        if(in_array('2',$breed)){
+            $rules['morning']='required';
+            $rules['evening']='required';
+            $rules['price']='nullable';
+        }
+        $validator=Validator::make($data,$rules);
+        if($validator->fails()){
+            return response()->json(['result' => '0', 'data' => [], 'message' => str_replace(",", "|", implode(",", $validator->errors()->all()))], 422);
+        }
+        $breeds='';
+        foreach ($breed as $breedtype){
+            if($breedtype == '1'){
+                $breeds='Cow';
+            }
+            if($breedtype == '2'){
+                $breeds='Buffalo';
+            }
+        }
+        // dd($breeds);
+        $today=now()->startOfDay();
+        $existingRecord=Milkmansupply::where('reciever_id',$reciever_id)
+                        ->where('supply_id',$supply_id)
+                        ->where('breed',$breeds)
+                        ->whereDate('created_at',$today)
+                        ->first();
+        // dd($existingRecord);
+        if($existingRecord){
+            $morninglitre=(string)$morning ? (float)$morning :0;
+            $eveninglitre=(string)$evening ? (float)$evening :0;
+            $totallitre=(string) $morninglitre + $eveninglitre;
+            $totalprice=$price && $price !== '' ? (int) $price : $existingRecord->price;
+            $amount = $totallitre * $totalprice;
+
+            $days=now()->diffInDays($existingRecord->created_at);
+
+            if($days>15){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'You can update the records only for 15 days']);
+            }
+            $existingRecord->update([
+                'morning'=>$morninglitre,
+                'evening'=>$eveninglitre,
+                'total'=>$totallitre,
+                'price'=>$amount
+            ]);
+            $response = [
+                'breed' => $breeds,
+                'morning' =>(string) $morninglitre,
+                'evening' =>(string) $eveninglitre,
+                'price' => (string) $amount
+            ];
+            return response()->json(['result'=>'1','data'=>[$response],'message'=>'Supply records updated']);
+        }
+        else{
+            $default=Record::where('user_id',$supply_id)->first();
+            $morninglitre=(string)$morning ? (float)$morning :0;
+            $eveninglitre=(string)$evening ? (float)$evening :0;
+            $totallitre=(string) $morninglitre + $eveninglitre;
+            $totalprice= (string) $price && $price !== '' ? (int) $price : $default->price;
+            $amount = $totallitre * $totalprice;
+
+            Milkmansupply::create([
+                'reciever_id'=>$reciever_id,
+                'supply_id'=>$supply_id,
+                'breed'=>$breeds,
+                'morning'=>$morninglitre,
+                'evening'=>$eveninglitre,
+                'total'=>$totallitre,
+                'price'=>$amount
+            ]);
+            $response = [
+                    'breed' => $breeds,
+                    'morning' =>(string) $morninglitre,
+                    'evening' =>(string) $eveninglitre,
+                    'price' => (string) $amount
+                ];
+                return response()->json(['result'=>'1','data'=>[$response],'message'=>'Supply records created']);
+            }
+    }
+    #15
+    public function supplyrecords(Request $request) {
+        $data = $request->all();
+        $user1 = array_map('trim', explode(',', $data['user_id_1']));
+        $user2 = array_map('trim', explode(',', $data['user_id_2']));
+        $supply = array_map('trim', explode(',', $data['breed']));
+        $breed = [];
+        foreach ($supply as $breeds) {
+            if ($breeds == '1') {
+                $breed[] = 'Cow';
+            }
+            if ($breeds == '2') {
+                $breed[] = 'Buffalo';
             }
         }
 
-        foreach($breed as $index => $breedType){
-            $supplyType = $breeds[$index];
-            $breedRecord = Breed::where('supply', $supplyType)->firstorFail();
+        $perPage = 7;
+        $currentDate = now();
+        $endOfMonth = $currentDate->copy()->endOfMonth();
+        $startOfMonth = $currentDate->copy()->startOfMonth();
+        $weeks = [];
+        // Calculate the start date for the last 7 days of the current month
+        $startDate = $startOfMonth->copy()->subDays(7)->startOfDay();
+        $endDate = $endOfMonth->copy()->endOfDay();
 
-            if($breedRecord){
-                $today = now()->startOfDay();
-                $existingRecord=Supply::where('farmer_id',$data['farmer_id'])
-                                        ->where('milkman_id',$data['milkman_id'])
-                                        ->where('breed_id',$breedRecord->id)
-                                        ->whereDate('created_at',$today)
-                                        ->first();
+        $user=User::where('id',$user1)->first();
+        if($user->role=='Farmer'){
+            // dd(1);
+            for ($date = $startOfMonth; $date->lessThanOrEqualTo($endOfMonth); $date->addWeek()) {
+                $startOfWeek = $date->copy()->startOfWeek();
+                $endOfWeek = $date->copy()->endOfWeek()->min($endOfMonth);
+                // Fetch records for this week
+                $farmerrecords = Farmersupply::where('supply_id', $user1)
+                        ->where('reciever_id', $user2)
+                        ->where('breed',$breed)
+                        ->whereBetween('created_at', [$startDate, $endDate])
+                        ->paginate($perPage);
+                $farmerweeks[] = $farmerrecords;
+                $milkmanrecords = Milkmansupply::where('reciever_id', $user2)
+                        ->where('supply_id', $user1)
+                        ->where('breed',$breed)
+                        ->whereBetween('created_at', [$startDate, $endDate])
+                        ->paginate($perPage);
+                $milkmanweeks[] = $milkmanrecords;
+            }
+                if ($farmerrecords->isEmpty()) {
+                    return response()->json(['result' => '0', 'data' => [], 'message' => 'No records found'], 404);
+                }
+                if($milkmanrecords->isEmpty()){
+                    $response=[];
+                    foreach ($farmerweeks as $farmerweekRecords){
+                        $farmerdatas=$farmerweekRecords->items();
+                        foreach($farmerdatas as $farmerrecordings){
+                            $response=[
+                                'breed' => $farmerrecordings->breed,
+                                    'farmer'=>[
+                                    'morning' => (string) $farmerrecordings->morning,
+                                    'evening' => (string) $farmerrecordings->evening,
+                                    'total' => (string) $farmerrecordings->total,
+                                    'price' => (string) $farmerrecordings->price,
+                                    'date' => $farmerrecordings->created_at->format('Y-m-d'),
+                                    ]
+                            ];
+                            return response()->json(['result' => '1', 'data' => $response, 'message' => 'Supply records retrieved successfully']);
+                        }
+                    }
+                }
+                if($farmerrecords && $milkmanrecords){
+                    $response = [];
+                foreach ($farmerweeks as $farmerweekRecords){
+                    $farmerdatas=$farmerweekRecords->items();
+                    foreach($milkmanweeks as $milkmanweekRecords){
+                        $milkmandatas=$milkmanweekRecords->items();
+                        foreach($farmerdatas as $farmerrecordings){
+                            foreach($milkmandatas as $milkmanrecordings){
+                                $response=[
+                                    'breed' => $farmerrecordings->breed,
+                                    'farmer'=>[
+                                    'morning' => (string) $farmerrecordings->morning,
+                                    'evening' => (string) $farmerrecordings->evening,
+                                    'total' => (string) $farmerrecordings->total,
+                                    'price' => (string) $farmerrecordings->price,
+                                    'date' => $farmerrecordings->created_at->format('Y-m-d'),
+                                    ],
+                                    'milkman'=>[
+                                        'morning'=>$milkmanrecordings->morning,
+                                        'evening' => (string) $milkmanrecordings->evening,
+                                        'total' => (string) $milkmanrecordings->total,
+                                        'price' => (string) $milkmanrecordings->price,
+                                        'date' => $milkmanrecordings->created_at->format('Y-m-d'),
+                                    ]
+                                    ];
+                            }
+                        }
+                    }
+                }
+                return response()->json(['result' => '1', 'data' => $response, 'message' => 'Supply records retrieved successfully']);
+                }
+        }
+        if($user->role=='Milkman'){
+            // dd(2);
+            for ($date = $startOfMonth; $date->lessThanOrEqualTo($endOfMonth); $date->addWeek()) {
+                $startOfWeek = $date->copy()->startOfWeek();
+                $endOfWeek = $date->copy()->endOfWeek()->min($endOfMonth);
+                // Fetch records for this week
+                $milkmanrecords = Milkmansupply::where('reciever_id', $user1)
+                        ->where('supply_id', $user2)
+                        ->where('breed',$breed)
+                        ->whereBetween('created_at', [$startDate, $endDate])
+                        ->paginate($perPage);
+                $milkmanweeks[] = $milkmanrecords;
 
-            // $totalValue = $morningValue + $eveningValue; // Calculate total
+                $farmerrecords = Farmersupply::where('supply_id', $user2)
+                        ->where('reciever_id', $user1)
+                        ->where('breed',$breed)
+                        ->whereBetween('created_at', [$startDate, $endDate])
+                        ->paginate($perPage);
 
-            if ($existingRecord) {
-            $morningValue = (string) isset($morning[$index]) ? (float) $morning[$index] : 0;
-            $eveningValue =(string) isset($evening[$index]) ? (float) $evening[$index] : 0;
-            $totalvalue=(string) $morningValue + $eveningValue;
-            $priceValue = isset($price[$index]) && $price[$index] !== '' ? (int) $price[$index] : $existingRecord->price;
-            $amount=$totalvalue * $priceValue;
-                $days = now()->diffInDays($existingRecord->created_at);
-
-                if ($days > 15) {
+                $farmerweeks[] = $farmerrecords;
+            }
+            // dd($records);
+                if ($milkmanrecords->isEmpty()) {
+                    return response()->json(['result' => '0', 'data' => [], 'message' => 'No records found'], 404);
+                }
+                if($farmerrecords->isEmpty()){
+                    $response=[];
+                    foreach ($milkmanweeks as $milkmanweekRecords){
+                        $milkmandatas=$milkmanweekRecords->items();
+                        foreach($milkmandatas as $milkmanrecordings){
+                            $response=[
+                                'breed' => $milkmanrecordings->breed,
+                                    'milkman'=>[
+                                    'morning' => (string) $milkmanrecordings->morning,
+                                    'evening' => (string) $milkmanrecordings->evening,
+                                    'total' => (string) $milkmanrecordings->total,
+                                    'price' => (string) $milkmanrecordings->price,
+                                    'date' => $milkmanrecordings->created_at->format('Y-m-d'),
+                                    ]
+                            ];
+                            return response()->json(['result' => '1', 'data' => $response, 'message' => 'Supply records retrieved successfully']);
+                        }
+                    }
+                }
+                if($farmerrecords && $milkmanrecords){
+                    $response = [];
+                foreach ($milkmanweeks as $weekRecords){
+                        $milkmandatas=$weekRecords->items();
+                    foreach ($farmerweeks as $farmerweekrecords){
+                        $farmerdatas=$farmerweekrecords->items();
+                        foreach($milkmandatas as $index => $recordings){
+                            foreach($farmerdatas as $farmerrecordings){
+                                $response=[
+                                    'breed' => $recordings->breed,
+                                    'milkman'=>[
+                                    'morning' => (string) $recordings->morning,
+                                    'evening' => (string) $recordings->evening,
+                                    'total' => (string) $recordings->total,
+                                    'price' => (string) $recordings->price,
+                                    'date' => $recordings->created_at->format('Y-m-d'),
+                                    ],
+                                    'farmer'=>[
+                                        'morning'=>$farmerrecordings->morning,
+                                        'evening' => (string) $farmerrecordings->evening,
+                                        'total' => (string) $farmerrecordings->total,
+                                        'price' => (string) $farmerrecordings->price,
+                                        'date' => $recordings->created_at->format('Y-m-d'),
+                                    ]
+                                    ];
+                            }
+                        }
+                    }
+                }
+                if (!empty($response)) {
+                    return response()->json([
+                        'result' => '1',
+                        'data' => [$response],
+                        'message' => 'fetched'
+                    ]);
+                } else {
                     return response()->json([
                         'result' => '0',
                         'data' => [],
-                        'message' => 'You can update the records only for 15 days'
+                        'message' => 'not found'
                     ]);
                 }
-
-                $existingRecord->update([
-                    'morning' => $morningValue,
-                    'evening' => $eveningValue,
-                    'price' => $amount,
-
-                ]);
-                $recordSummary = [
-                    'breed' => $breeds[$index],
-                    'morning' => (string) $morningValue,
-                    'evening' => (string) $eveningValue,
-                    'price' => (string) $amount
-                ];
-            } else {
-                // dd($breedRecord->id);
-                $default=Record::where('user_id',$farmer_id)->first();
-                $morningValue = (string) isset($morning[$index]) ? (float) $morning[$index] : 0;
-                $eveningValue =(string) isset($evening[$index]) ? (float) $evening[$index] : 0;
-                $totalvalue=(string) $morningValue + $eveningValue;
-                $price=(string) isset($price[$index]) && $price[$index] !== '' ? (string) $price[$index] : (string) $default->price;
-                $amount=$totalvalue * $price;
-                // dd($default->maximum_price);
-                Supply::create([
-                    'farmer_id' => $data['farmer_id'],
-                    'milkman_id' => $data['milkman_id'],
-                    'breed_id' => $breedRecord->id,
-                    'morning' => $morningValue,
-                    'evening' => $eveningValue,
-                    'total'=>$totalvalue,
-                    'price' => $amount
-                ]);
-                $recordSummary = [
-                    'breed' => $breeds[$index],
-                    'morning' =>(string) $morningValue,
-                    'evening' =>(string) $eveningValue,
-                    'price' => (string) $amount
-                ];
-            }
-        }
         }
 
-        return response()->json([
-            'result' => '1',
-            'data' => [$recordSummary],
-            'message' => 'Supply records updated successfully'
-        ], 200);
+                }
+
+        // if (!empty($response)) {
+        //     return response()->json([
+        //         'result' => '1',
+        //         'data' => $response,'total_litres' => (string) $overall_total,'total_price' => (string) $total_price,
+        //         'message' => 'fetched'
+        //     ]);
+        // } else {
+        //     return response()->json([
+        //         'result' => '0',
+        //         'data' => [],
+        //         'message' => 'not found'
+        //     ]);
+        // }
     }
-    #11
-    public function withdraw(Request $request){
+    #16
+    public function requestwithdraw(Request $request){
         $data=$request->all();
+        // dd($data);
         $withdraw=array_map('trim',explode(',',$data['withdraw']));
         $rules=[
             'date'=>'required',
@@ -779,228 +1196,64 @@ class RegisterUser extends Controller
         $data['withdraw']=implode(',',$withdraw_reason);
         if($data['withdraw']){
             WithdrawSupply::create([
-                'farmer_id'=>$data['farmer_id'],
-                'milkman_id'=>$data['milkman_id'],
+                'user_1_id'=>$data['user_1'],
+                'user_2_id'=>$data['user_2'],
                 'date'=>$data['date'],
                 'withdraw'=>$data['withdraw'],
                 'description'=>$data['description'],
+                'status'=>'pending'
             ]);
-            Supply::where('farmer_id',$data['farmer_id'])
-                    ->where('milkman_id',$data['milkman_id'])
+        }
+
+        return response()->json(['result'=>'1','data'=>[$data],'message'=>'request sent']);
+    }
+    #17
+    public function acceptwithdraw(Request $request){
+        $withdraw=WithdrawSupply::findorFail($request->withdraw_id);
+        $withdraw->update([
+            'status'=>'withdrawed',
+        ]);
+        $user=User::where('id',$withdraw->user_1_id)->first();
+        // dd($user);
+        if($user->role=='Farmer'){
+            dd(1);
+            $farmer=Farmersupply::where('supply_id',$withdraw->user_1_id)
+                        ->where('reciever_id',$withdraw->user_2_id)
+                        ->delete();
+             $milkman=Milkmansupply::where('reciever_id',$withdraw->user_2_id)
+                    ->where('supply_id',$withdraw->user_1_id)
                     ->delete();
+            $connection=Connection::find($withdraw->user_1_id);
+            if($connection===null){
+                $farmerconnection=Connection::where('reciever_id',$withdraw->user_2_id)->delete();
+           }
+           elseif($connection){
+                Connection::where('supply_id',$withdraw->user_1_id)->delete();
+           }
+        }
+        if($user->role=='Milkman'){
+            $milkman=Milkmansupply::where('reciever_id',$withdraw->user_1_id)
+                    ->where('supply_id',$withdraw->user_2_id)
+                    ->delete();
+            $farmer=Farmersupply::where('supply_id',$withdraw->user_2_id)
+                        ->where('reciever_id',$withdraw->user_1_id)
+                        ->delete();
+            $connection=Connection::find($withdraw->user_1_id);
+               if($connection===null){
+                    $farmerconnection=Connection::where('supply_id',$withdraw->user_2_id)->delete();
+               }
+               elseif($connection){
+                Connection::where('reciever_id',$withdraw->user_1_id)->delete();
+               }
         }
 
-        return response()->json(['result'=>'1','data'=>[$data],'message'=>'Withdrawed']);
+        return response()->json(['result'=>'0','data'=>[$withdraw],'message'=>'successfully withdrawed']);
     }
-    #12
-    public function farmrecords(Request $request){
-        $data = $request->all();
-        $ids = array_map('trim', explode(',', $data['user_id']));
-        $supply=array_map('trim',explode(',',$data['breed']));
-        $users=User::with('breeds')->where('id',$ids)->first();
-        if(!$users){
-            return response()->json([
-                'result' => '0',
-                'data' => [],
-                'message' => 'not found'
-            ]);
-        }
-        $breeds=$users->breeds;
-        foreach($breeds as $price){
-            $maximum_price=$price->maximum_price;
-        }
+    #18
+    public function rejectwithdraw(Request $request){
 
-        $breed=[];
-        foreach($supply as $breeds){
-            if($breeds=='1'){
-                $breed[]='Cow';
-            }
-            if($breeds=='2'){
-                $breed[]='Buffalo';
-            }
-        }
-        // dd($breed);
-        $perPage = 7;
-
-        $currentDate = now();
-        $startOfMonth = $currentDate->copy()->startOfMonth();
-        $endOfMonth = $currentDate->copy()->endOfMonth();
-        $startOfWeek = $currentDate->copy()->startOfWeek();
-        $endOfWeek = $currentDate->copy()->endOfWeek();
-        $startDate = $startOfMonth->copy()->subDays(7)->startOfDay();
-        $endDate = $endOfMonth->copy()->endOfDay();
-
-        $isEndOfWeek = $currentDate->greaterThanOrEqualTo($endOfWeek);
-
-        // Fetch records within the date range and belonging to specified user IDs
-        $query = Record::with('breed')
-        ->whereIn('user_id', $ids)
-        ->whereHas('breed', function($query) use ($breed) {
-            $query->where('supply', $breed);
-        });
-        if ($isEndOfWeek) {
-            // Fetch records for the entire month
-            $query->whereBetween('created_at', [$startOfMonth, $endOfMonth]);
-        } else {
-            // Fetch records for the last week
-            $query->whereBetween('created_at', [$startOfWeek, $endOfWeek]);
-        }
-
-        $records = $query->paginate($perPage);
-        // dd($records);
-        // Paginate the records
-        if ($users->role == 'Milkman') {
-            $morningTotal = $records->sum('morning');
-            $eveningTotal = $records->sum('evening');
-            $totalLitres = $morningTotal + $eveningTotal;
-            $price = $maximum_price; // Assuming a fixed price per litre
-            $totalPrice = $totalLitres * $price;
-
-            $datas = $records->items();
-            // dd($datas);
-
-            $respone=[];
-            foreach($datas as $index => $recordings){
-                $response=[
-                'supply'=>$breed[$index],
-                'user_id' => (string) $recordings->user_id,
-                'breed_id' => (string) $recordings->breed_id,
-                'morning' => (string) $recordings->morning,
-                'evening' => (string) $recordings->evening,
-                'price' => (string) $recordings->price,
-                'notes' => (string) $recordings->notes,
-                'morningTotal' => (string) $morningTotal,
-                    'eveningTotal' =>(string) $eveningTotal,
-                    'totalLitres' =>(string) $totalLitres,
-                    'totalPrice' =>(string) $totalPrice,
-                ];
-
-            }
-
-            if (!empty ($response)) {
-                return response()->json([
-                    'result' => '1',
-                    'data' => $response,
-                    'message' => 'fetched'
-                ]);
-            } else {
-                return response()->json([
-                    'result' => '0',
-                    'data' => [],
-                    'message' => 'not found'
-                ]);
-            }
-            } else {
-                $datas = $records->items();
-                // dd($datas);
-
-                $respone=[];
-                foreach($datas as $index => $recordings){
-                    $response=[
-                    'supply'=>$breed[$index],
-                    'user_id' => (string) $recordings->user_id,
-                    'breed_id' => (string) $recordings->breed_id,
-                    'morning' => (string) $recordings->morning,
-                    'evening' => (string) $recordings->evening,
-                    'price' => (string) $recordings->price,
-                    'notes' => (string) $recordings->notes,
-                    ];
-                }
-                if (!empty ($response)) {
-                    return response()->json([
-                        'result' => '1',
-                        'data' => [$response],
-                        'message' => 'fetched'
-                    ]);
-                } else {
-                    return response()->json([
-                        'result' => '0',
-                        'data' => [],
-                        'message' => 'not found'
-                    ]);
-                }
-        }
     }
-    #13
-    public function supplyrecords(Request $request) {
-        $data = $request->all();
-        $user1 = array_map('trim', explode(',', $data['user_id_1']));
-        $user2 = array_map('trim', explode(',', $data['user_id_2']));
-        $supply = array_map('trim', explode(',', $data['breed']));
-        $breed = [];
-        foreach ($supply as $breeds) {
-            if ($breeds == '1') {
-                $breed[] = 'Cow';
-            }
-            if ($breeds == '2') {
-                $breed[] = 'Buffalo';
-            }
-        }
-
-        $perPage = 7;
-
-        $currentDate = now();
-        $endOfMonth = $currentDate->copy()->endOfMonth();
-        $startOfMonth = $currentDate->copy()->startOfMonth();
-
-        // Calculate the start date for the last 7 days of the current month
-        $startDate = $startOfMonth->copy()->subDays(7)->startOfDay();
-        $endDate = $endOfMonth->copy()->endOfDay();
-
-        $query = Supply::with('breed')
-            ->whereIn('farmer_id', $user1)
-            ->whereIn('milkman_id', $user2)
-            ->whereHas('breed', function($query) use ($breed) {
-                $query->where('supply', $breed);
-            })
-            ->whereBetween('created_at', [$startDate, $endDate]);
-
-        $user = User::where('id', $user1)->first();
-        $supplies = $query->paginate($perPage);
-
-        $datas = $supplies->items();
-        $overall_total = $supplies->sum('total');
-        $total_price = $supplies->sum('price');
-
-        $response = [];
-
-        foreach ($datas as $data) {
-            $item = [
-                'breed_id' => (string) $data->breed_id,
-                'morning' => (string) $data->morning,
-                'evening' => (string) $data->evening,
-                'price' => (string) $data->price,
-                'total_litres' => (string) $data->total,
-            ];
-
-            if ($user->role == 'Farmer') {
-                $milkman = User::where('id', $user2)->first();
-                $item['farmer_id'] = (string) $data->farmer_id;
-                $item['milkman_name'] = $milkman->name;
-            } else if ($user->role == 'Milkman') {
-                $farmer = User::where('id', $user2)->first();
-                $item['milkman_id'] = (string) $data->milkman_id;
-                $item['farmer_name'] = $farmer->name;
-            }
-
-            $response[] = $item;
-        }
-
-        if (!empty($response)) {
-            return response()->json([
-                'result' => '1',
-                'data' => $response,'total_litres' => (string) $overall_total,'total_price' => (string) $total_price,
-                'message' => 'fetched'
-            ]);
-        } else {
-            return response()->json([
-                'result' => '0',
-                'data' => [],
-                'message' => 'not found'
-            ]);
-        }
-    }
-    #14
+    #19
     public function updateuser(Request $request,){
         // Split the supply values into an array
         $data=$request->all();
@@ -1340,107 +1593,107 @@ class RegisterUser extends Controller
         ]);
 
     }
-    #15
-    public function createtransactions(Request $request){
-        $user1=User::where('id',$request->user_id_1)->first();
-        $user2=User::where('id',$request->user_id_2)->first();
-        if($user1->role=='Farmer'){
-            if($user2->role=='Milkman'){
+    // #18
+    // public function createtransactions(Request $request){
+    //     $user1=User::where('id',$request->user_id_1)->first();
+    //     $user2=User::where('id',$request->user_id_2)->first();
+    //     if($user1->role=='Farmer'){
+    //         if($user2->role=='Milkman'){
 
-                    $supply_1=Supply::where('farmer_id',$request->user_id_1)->first();
-                    // dd($supply1);
-                    $supply_2=Supply::where('farmer_id',$request->user_id_2)->first();
-                    // dd($supply2);
-                    $total_litres_1 = $supply_1->morning + $supply_1->evening;
-                    $total_cost_1 = $supply_1->price * $total_litres_1;
-                    // dd($total_cost_1);
-                    $total_litres_2 = $supply_2->morning + $supply_2->evening;
-                    $total_cost_2 = $supply_2->price * $total_litres_2;
+    //                 $supply_1=Supply::where('farmer_id',$request->user_id_1)->first();
+    //                 // dd($supply1);
+    //                 $supply_2=Supply::where('farmer_id',$request->user_id_2)->first();
+    //                 // dd($supply2);
+    //                 $total_litres_1 = $supply_1->morning + $supply_1->evening;
+    //                 $total_cost_1 = $supply_1->price * $total_litres_1;
+    //                 // dd($total_cost_1);
+    //                 $total_litres_2 = $supply_2->morning + $supply_2->evening;
+    //                 $total_cost_2 = $supply_2->price * $total_litres_2;
 
-                    if($total_cost_1==$total_cost_2){
-                        if($user2->payload=='Weekly'){
-                            $nextPaymentDate = now()->addWeek(); // Date one week from now
-                            $transactionrecord=Transaction::where('payout',$user2->payload)->first();
-                            if($transactionrecord){
-                                $today=now()->startOfDay();
-                                $existingtransaction=Transaction::where('farmer_id',$request->user_id_1)
-                                                    ->where('created_at',$today)
-                                                    ->first();
-                                if($existingtransaction){
-                                    dd(1);
-                                    $existingtransaction->update([
-                                        'milkman_id' => $user2->id,
-                                        'amount' =>(string) $total_cost_2,
-                                        'status' => 'Pending', // Or another status as needed
-                                        'payout' => 'Weekly',
-                                        'scheduled_for' => $nextPaymentDate,
-                                    ]);
-                                }
-                                else{
-                                    Transaction::create([
-                                        'farmer_id' => $user1->id, // Adjust according to your logic
-                                        'milkman_id' => $user2->id,
-                                        'amount' =>(string) $total_cost_2,
-                                        'status' => 'Pending', // Or another status as needed
-                                        'payout' => 'Weekly',
-                                        'scheduled_for' => $nextPaymentDate, // Assuming you have this column
-                                    ]);
-                                    $response=[
-                                        'amount' => $total_cost_2,
-                                        'status' => 'Pending', // Or another status as needed
-                                        'payout' => 'Weekly',
-                                        'scheduled_for' => $nextPaymentDate,
-                                    ];
-                                    return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
-                                    }
-                                }
-                            }
-                            if($user2->payload=='15 Days'){
-                                $nextPaymentDate = now()->addDays(15); // Date one week from now
-                                // Create a new transaction record
-                                $transactionrecord=Transaction::where('payout',$user2->payload)->first();
-                                Transaction::create([
-                                    'farmer_id' => $user1->id, // Adjust according to your logic
-                                    'milkman_id' => $user2->id,
-                                    'amount' =>(string) $total_cost_2,
-                                    'status' => 'Pending', // Or another status as needed
-                                    'payout' => 'Weekly',
-                                    'scheduled_for' => $nextPaymentDate, // Assuming you have this column
-                                ]);
-                                $response=[
-                                    'amount' => $total_cost_2,
-                                    'status' => 'Pending', // Or another status as needed
-                                    'payout' => 'Weekly',
-                                    'scheduled_for' => $nextPaymentDate,
-                                ];
-                                return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
-                            }
-                            if($user2->payload=='Monthly'){
-                                $nextPaymentDate = now()->addMonth(); // Date one week from now
-                                // Create a new transaction record
-                                Transaction::create([
-                                    'farmer_id' => $user1->id, // Adjust according to your logic
-                                    'milkman_id' => $user2->id,
-                                    'amount' =>(string) $total_cost_2,
-                                    'status' => 'Pending', // Or another status as needed
-                                    'payout' => 'Weekly',
-                                    'scheduled_for' => $nextPaymentDate, // Assuming you have this column
-                                ]);
-                                $response=[
-                                    'amount' => $total_cost_2,
-                                    'status' => 'Pending', // Or another status as needed
-                                    'payout' => 'Weekly',
-                                    'scheduled_for' => $nextPaymentDate,
-                                ];
-                                return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
-                        }
-                }
-                else{
-                    return response()->json(['result'=>'0','data'=>[],'message'=>'supplied details are invalid']);
-                }
-            }
-        }
-    }
+    //                 if($total_cost_1==$total_cost_2){
+    //                     if($user2->payload=='Weekly'){
+    //                         $nextPaymentDate = now()->addWeek(); // Date one week from now
+    //                         $transactionrecord=Transaction::where('payout',$user2->payload)->first();
+    //                         if($transactionrecord){
+    //                             $today=now()->startOfDay();
+    //                             $existingtransaction=Transaction::where('farmer_id',$request->user_id_1)
+    //                                                 ->where('created_at',$today)
+    //                                                 ->first();
+    //                             if($existingtransaction){
+    //                                 dd(1);
+    //                                 $existingtransaction->update([
+    //                                     'milkman_id' => $user2->id,
+    //                                     'amount' =>(string) $total_cost_2,
+    //                                     'status' => 'Pending', // Or another status as needed
+    //                                     'payout' => 'Weekly',
+    //                                     'scheduled_for' => $nextPaymentDate,
+    //                                 ]);
+    //                             }
+    //                             else{
+    //                                 Transaction::create([
+    //                                     'farmer_id' => $user1->id, // Adjust according to your logic
+    //                                     'milkman_id' => $user2->id,
+    //                                     'amount' =>(string) $total_cost_2,
+    //                                     'status' => 'Pending', // Or another status as needed
+    //                                     'payout' => 'Weekly',
+    //                                     'scheduled_for' => $nextPaymentDate, // Assuming you have this column
+    //                                 ]);
+    //                                 $response=[
+    //                                     'amount' => $total_cost_2,
+    //                                     'status' => 'Pending', // Or another status as needed
+    //                                     'payout' => 'Weekly',
+    //                                     'scheduled_for' => $nextPaymentDate,
+    //                                 ];
+    //                                 return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
+    //                                 }
+    //                             }
+    //                         }
+    //                         if($user2->payload=='15 Days'){
+    //                             $nextPaymentDate = now()->addDays(15); // Date one week from now
+    //                             // Create a new transaction record
+    //                             $transactionrecord=Transaction::where('payout',$user2->payload)->first();
+    //                             Transaction::create([
+    //                                 'farmer_id' => $user1->id, // Adjust according to your logic
+    //                                 'milkman_id' => $user2->id,
+    //                                 'amount' =>(string) $total_cost_2,
+    //                                 'status' => 'Pending', // Or another status as needed
+    //                                 'payout' => 'Weekly',
+    //                                 'scheduled_for' => $nextPaymentDate, // Assuming you have this column
+    //                             ]);
+    //                             $response=[
+    //                                 'amount' => $total_cost_2,
+    //                                 'status' => 'Pending', // Or another status as needed
+    //                                 'payout' => 'Weekly',
+    //                                 'scheduled_for' => $nextPaymentDate,
+    //                             ];
+    //                             return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
+    //                         }
+    //                         if($user2->payload=='Monthly'){
+    //                             $nextPaymentDate = now()->addMonth(); // Date one week from now
+    //                             // Create a new transaction record
+    //                             Transaction::create([
+    //                                 'farmer_id' => $user1->id, // Adjust according to your logic
+    //                                 'milkman_id' => $user2->id,
+    //                                 'amount' =>(string) $total_cost_2,
+    //                                 'status' => 'Pending', // Or another status as needed
+    //                                 'payout' => 'Weekly',
+    //                                 'scheduled_for' => $nextPaymentDate, // Assuming you have this column
+    //                             ]);
+    //                             $response=[
+    //                                 'amount' => $total_cost_2,
+    //                                 'status' => 'Pending', // Or another status as needed
+    //                                 'payout' => 'Weekly',
+    //                                 'scheduled_for' => $nextPaymentDate,
+    //                             ];
+    //                             return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
+    //                     }
+    //             }
+    //             else{
+    //                 return response()->json(['result'=>'0','data'=>[],'message'=>'supplied details are invalid']);
+    //             }
+    //         }
+    //     }
+    // }
     #16
     public function transaction(Request $request){
         $data=$request->all();
