@@ -9,6 +9,7 @@ use App\Models\Connection;
 use App\Models\Farmersupply;
 use App\Models\Milkmansupply;
 use App\Models\Record;
+use App\Models\Review;
 use App\Models\Transaction;
 use App\Models\WithdrawSupply;
 use Carbon\Carbon;
@@ -610,31 +611,258 @@ class RegisterUser extends Controller
 
         return response()->json(['result' => '1', 'data' => [$data], 'message' => 'Notes saved or updated']);
     }
+    // #8
+    // public function farmerdetails(Request $request){
+    //     $user_id=$request->user_id;
+    //     $auth_user=User::where('id',$user_id)->first();
+    //     $location=$auth_user->address;
+    //     // Normalize the address to handle cases, extra spaces, etc.
+    //     $normalizedAddress = strtolower(trim(preg_replace('/\s+/', ' ', $location)));
+
+    //     if (preg_match('/,\s*([^,]+?)\s*,\s*\d{6}/', $normalizedAddress, $matches)) {
+    //         $district = ucwords(trim($matches[1]));
+    //     } else {
+    //         return response()->json(['result' => '0', 'message' => 'no users found']);
+    //     }
+    //     if($auth_user->role=='Milkman'){
+    //         $role='Farmer';
+    //     $nearbyUsers = User::with('breeds')
+    //     ->where('role', $role)
+    //     ->where('address', 'LIKE', '%' . $district . '%') // Assuming address contains the pincode
+    //     ->get();
+    //     // dd($nearbyUsers);
+
+    //     $nearbyUsers->transform(function ($user) {
+    //         $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
+    //         return $user;
+    //     });
+
+    //     return response()->json(['result'=>'1','data'=>[$nearbyUsers],'message'=>'Fetched']);
+    //     }
+    //     return response()->json(['result'=>'0','data'=>[],'message'=>'not a valid user']);
+    // }
     #8
-    public function farmerdetails(){
-        $role='Farmer';
-        $user=User::with('breeds')->where('role',$role)->get();
-        $user->transform(function ($user) {
+    public function farmerandmilkmandetails(Request $request){
+        $user_id=$request->user_id;
+        $auth_user=User::where('id',$user_id)
+                    ->first();
+        if(!$auth_user){
+            return response()->json(['result'=>'0','data'=>[],'message'=>'not a valid user']);
+        }
+        $location=$auth_user->address;
+        // Normalize the address to handle cases, extra spaces, etc.
+        $normalizedAddress = strtolower(trim(preg_replace('/\s+/', ' ', $location)));
+
+        if (preg_match('/,\s*([^,]+?)\s*,\s*\d{6}/', $normalizedAddress, $matches)) {
+            $district = ucwords(trim($matches[1]));
+        } else {
+            return response()->json(['result' => '0', 'message' => 'no users found']);
+        }
+        if($auth_user->role=='Farmer'){
+            $role='Milkman';
+        $nearbyUsers = User::with('breeds')
+        ->where('role', $role)
+        ->where('address', 'LIKE', '%' . $district . '%') // Assuming address contains the pincode
+        ->get();
+        // dd($nearbyUsers);
+
+        $nearbyUsers->transform(function ($user) {
             $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
             return $user;
         });
 
-        return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
+        return response()->json(['result'=>'1','data'=>[$nearbyUsers],'message'=>'Fetched']);
+        }
+        if($auth_user->role=='Milkman'){
+            $role='Farmer';
+        $nearbyUsers = User::with('breeds')
+        ->where('role', $role)
+        ->where('address', 'LIKE', '%' . $district . '%') // Assuming address contains the pincode
+        ->get();
+        // dd($nearbyUsers);
+
+        $nearbyUsers->transform(function ($user) {
+            $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
+            return $user;
+        });
+
+        return response()->json(['result'=>'1','data'=>[$nearbyUsers],'message'=>'Fetched']);
+        }
+        return response()->json(['result'=>'0','data'=>[],'message'=>'not a valid user']);
     }
+    // #9
+    // public function milkmandetails(Request $request){
+    //     $user_id=$request->user_id;
+    //     $auth_user=User::where('id',$user_id)->first();
+    //     $location=$auth_user->address;
+    //     $normalizedAddress = strtolower(trim(preg_replace('/\s+/', ' ', $location)));
+
+    //     if (preg_match('/,\s*([^,]+?)\s*,\s*\d{6}/', $normalizedAddress, $matches)) {
+    //         $district = ucwords(trim($matches[1]));
+    //     } else {
+    //         return response()->json(['result' => '0', 'message' => 'no users found']);
+    //     }
+    //     if($auth_user->role=='Farmer'){
+    //         $role='Milkman';
+    //     $user=User::with('breeds')
+    //         ->where('role',$role)
+    //         ->where('address','LIKE','%'.$district.'%')
+    //         ->get();
+    //     $user->transform(function ($user) {
+    //         $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
+    //         return $user;
+    //     });
+    //     return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
+    //     }
+    //     return response()->json(['result'=>'0','data'=>[],'message'=>'not a valid user']);
+    // }
     #9
-    public function milkmandetails(){
+    public function filterusers(Request $request){
+        // dd($request->all());
+        $user_id=$request->user_id;
+        $breed=array_map('trim',explode(',',$request->breed));
+        $minimum_price=array_map('trim',explode(',',$request->minimum_price));
+        $maximum_price=array_map('trim',explode(',',$request->maximum_price));
+        $litres=array_map('trim',explode(',',$request->litres));
+        $payout=array_map('trim',explode(',',$request->payout));
+
+        $breeds=[];
+        foreach ($breed as $supply){
+            if($supply=='1'){
+                $breeds[]='Cow';
+            }
+            if($supply=='2'){
+                $breeds[]='Buffalo';
+            }
+        }
+        $payload=[];
+        foreach ($payout as $cycle){
+            if($cycle=='1'){
+                $payload[]='Weekly';
+            }
+            if($supply=='2'){
+                $payload[]='15 Days';
+            }
+            if($supply=='3'){
+                $payload[]='Monthly';
+            }
+        }
+        $auth_user=User::with('breeds')->where('id',$user_id)
+                    ->first();
+        if(!$auth_user){
+            return response()->json(['result'=>'0','data'=>[],'message'=>'not a valid user']);
+        }
+        $location=$auth_user->address;
+        // Normalize the address to handle cases, extra spaces, etc.
+        $normalizedAddress = strtolower(trim(preg_replace('/\s+/', ' ', $location)));
+
+        if (preg_match('/,\s*([^,]+?)\s*,\s*\d{6}/', $normalizedAddress, $matches)) {
+            $district = ucwords(trim($matches[1]));
+        } else {
+            return response()->json(['result' => '0', 'message' => 'no users found']);
+        }
+        if($auth_user->role=='Farmer'){
         $role='Milkman';
-        $user=User::with('breeds')->where('role',$role)->get();
-        $user->transform(function ($user) {
+        $query = User::with(['breeds' => function ($q) use ($breeds, $minimum_price, $maximum_price) {
+            if (!empty($breeds)) {
+                $q->whereIn('supply', $breeds);
+            }
+            if (!empty($minimum_prices)) {
+                $q->where(function ($subquery) use ($minimum_price) {
+                    foreach ($minimum_price as $index => $min_price) {
+                        if (!empty($min_price)) {
+                            $subquery->orWhere('minimum_price', '>=', $min_price);
+                        }
+                    }
+                });
+            }
+            if (!empty($maximum_price)) {
+                $q->where(function ($subquery) use ($maximum_price) {
+                    foreach ($maximum_price as $index => $max_price) {
+                        if (!empty($max_price)) {
+                            $subquery->orWhere('maximum_price', '<=', $max_price);
+                        }
+                    }
+                });
+            }
+        }])
+        ->where('role', $role)
+        ->where('address', 'LIKE', '%' . $district . '%');
+
+        if (!empty($payout)) {
+            $query->whereIn('payload', $payload);
+        }
+
+        $nearbyUsers = $query->get();
+        // dd($nearbyUsers);
+
+        // dd($nearbyUsers);
+        $nearbyUsers->transform(function ($user) {
             $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
             return $user;
         });
 
-        return response()->json(['result'=>'1','data'=>[$user],'message'=>'Fetched']);
+        if ($nearbyUsers->isEmpty()) {
+            return response()->json(['result' => '0', 'data' => [], 'message' => 'No users found']);
+        }
+
+        return response()->json(['result' => '1', 'data' => [$nearbyUsers], 'message' => 'Fetched']);
+        }
+        if($auth_user->role=='Milkman'){
+            $role='Farmer';
+            $query = User::with(['breeds' => function ($q) use ($breeds, $minimum_price, $maximum_price,$litres) {
+                if (!empty($breeds)) {
+                    $q->whereIn('supply', $breeds);
+                }
+                if (!empty($minimum_prices)) {
+                    $q->where(function ($subquery) use ($minimum_price) {
+                        foreach ($minimum_price as $index => $min_price) {
+                            if (!empty($min_price)) {
+                                $subquery->orWhere('minimum_price', '>=', $min_price);
+                            }
+                        }
+                    });
+                }
+                if (!empty($maximum_price)) {
+                    $q->where(function ($subquery) use ($maximum_price) {
+                        foreach ($maximum_price as $index => $max_price) {
+                            if (!empty($max_price)) {
+                                $subquery->orWhere('maximum_price', '<=', $max_price);
+                            }
+                        }
+                    });
+                }
+                if (!empty($litres)) {
+                    $q->where(function ($subquery) use ($litres) {
+                        foreach ($litres as $index => $litre) {
+                            if (!empty($litre)) {
+                                $subquery->orWhere('litres', '<=', $litre);
+                            }
+                        }
+                    });
+                }
+            }])
+            ->where('role', $role)
+            ->where('address', 'LIKE', '%' . $district . '%');
+
+            $nearbyUsers = $query->get();
+        // dd($nearbyUsers);
+
+        $nearbyUsers->transform(function ($user) {
+            $user->profile_image = $user->profile_image ? asset('storage/profile_images/' . $user->profile_image) : null;
+            return $user;
+        });
+
+
+        if ($nearbyUsers->isEmpty()) {
+            return response()->json(['result' => '0', 'data' => [], 'message' => 'No users found']);
+        }
+
+        return response()->json(['result' => '1', 'data' => [$nearbyUsers], 'message' => 'Fetched']);
+        }
     }
     #10
-    public function farmrecords(Request $request)
-    {
+    public function farmrecords(Request $request){
         $data = $request->all();
         $ids = array_map('trim', explode(',', $data['user_id']));
         $supply = array_map('trim', explode(',', $data['breed']));
@@ -748,6 +976,8 @@ class RegisterUser extends Controller
     #12
     public function acceptrequest(Request $request){
         $connection=Connection::findorFail($request->connection_id);
+        // $onlySoftDeleted = Connection::onlyTrashed()->get();
+        // dd($onlySoftDeleted);
         $connection->update([
             'status'=>'accepted'
         ]);
@@ -1213,19 +1443,20 @@ class RegisterUser extends Controller
         $user=User::where('id',$withdraw->user_1_id)->first();
         // dd($user);
         if($user->role=='Farmer'){
-            dd(1);
+            // dd(1);
             $farmer=Farmersupply::where('supply_id',$withdraw->user_1_id)
                         ->where('reciever_id',$withdraw->user_2_id)
                         ->delete();
              $milkman=Milkmansupply::where('reciever_id',$withdraw->user_2_id)
                     ->where('supply_id',$withdraw->user_1_id)
                     ->delete();
-            $connection=Connection::find($withdraw->user_1_id);
+            $connection=Connection::where('follower_id',$withdraw->user_1_id)->first();
+            // dd($connection);
             if($connection===null){
-                $farmerconnection=Connection::where('reciever_id',$withdraw->user_2_id)->delete();
+                $farmerconnection=Connection::where('following_id',$withdraw->user_2_id)->delete();
            }
            elseif($connection){
-                Connection::where('supply_id',$withdraw->user_1_id)->delete();
+                Connection::where('follower_id',$withdraw->user_1_id)->delete();
            }
         }
         if($user->role=='Milkman'){
@@ -1235,20 +1466,26 @@ class RegisterUser extends Controller
             $farmer=Farmersupply::where('supply_id',$withdraw->user_2_id)
                         ->where('reciever_id',$withdraw->user_1_id)
                         ->delete();
-            $connection=Connection::find($withdraw->user_1_id);
+            $connection=Connection::where('follower_id',$withdraw->user_1_id)->first();
                if($connection===null){
-                    $farmerconnection=Connection::where('supply_id',$withdraw->user_2_id)->delete();
+                    $farmerconnection=Connection::where('follower_id',$withdraw->user_2_id)->delete();
                }
                elseif($connection){
-                Connection::where('reciever_id',$withdraw->user_1_id)->delete();
+                Connection::where('following_id',$withdraw->user_1_id)->delete();
                }
         }
-
+        $connection->update([
+            'status'=>'withdrawed',
+        ]);
         return response()->json(['result'=>'0','data'=>[$withdraw],'message'=>'successfully withdrawed']);
     }
     #18
     public function rejectwithdraw(Request $request){
-
+        $withdraw=WithdrawSupply::findorFail($request->withdraw_id);
+        $withdraw->update([
+            'status'=>'rejected',
+        ]);
+        return response()->json(['result'=>'1','data'=>[],'message'=>'request rejected']);
     }
     #19
     public function updateuser(Request $request,){
@@ -1585,204 +1822,49 @@ class RegisterUser extends Controller
 
         return response()->json([
             'result' => '1',
-            'data' => $response,
+            'data' => [$response],
             'message' => 'User updated successfully'
         ]);
 
     }
-    // #18
-    // public function createtransactions(Request $request){
-    //     $user1=User::where('id',$request->user_id_1)->first();
-    //     $user2=User::where('id',$request->user_id_2)->first();
-    //     if($user1->role=='Farmer'){
-    //         if($user2->role=='Milkman'){
-
-    //                 $supply_1=Supply::where('farmer_id',$request->user_id_1)->first();
-    //                 // dd($supply1);
-    //                 $supply_2=Supply::where('farmer_id',$request->user_id_2)->first();
-    //                 // dd($supply2);
-    //                 $total_litres_1 = $supply_1->morning + $supply_1->evening;
-    //                 $total_cost_1 = $supply_1->price * $total_litres_1;
-    //                 // dd($total_cost_1);
-    //                 $total_litres_2 = $supply_2->morning + $supply_2->evening;
-    //                 $total_cost_2 = $supply_2->price * $total_litres_2;
-
-    //                 if($total_cost_1==$total_cost_2){
-    //                     if($user2->payload=='Weekly'){
-    //                         $nextPaymentDate = now()->addWeek(); // Date one week from now
-    //                         $transactionrecord=Transaction::where('payout',$user2->payload)->first();
-    //                         if($transactionrecord){
-    //                             $today=now()->startOfDay();
-    //                             $existingtransaction=Transaction::where('farmer_id',$request->user_id_1)
-    //                                                 ->where('created_at',$today)
-    //                                                 ->first();
-    //                             if($existingtransaction){
-    //                                 dd(1);
-    //                                 $existingtransaction->update([
-    //                                     'milkman_id' => $user2->id,
-    //                                     'amount' =>(string) $total_cost_2,
-    //                                     'status' => 'Pending', // Or another status as needed
-    //                                     'payout' => 'Weekly',
-    //                                     'scheduled_for' => $nextPaymentDate,
-    //                                 ]);
-    //                             }
-    //                             else{
-    //                                 Transaction::create([
-    //                                     'farmer_id' => $user1->id, // Adjust according to your logic
-    //                                     'milkman_id' => $user2->id,
-    //                                     'amount' =>(string) $total_cost_2,
-    //                                     'status' => 'Pending', // Or another status as needed
-    //                                     'payout' => 'Weekly',
-    //                                     'scheduled_for' => $nextPaymentDate, // Assuming you have this column
-    //                                 ]);
-    //                                 $response=[
-    //                                     'amount' => $total_cost_2,
-    //                                     'status' => 'Pending', // Or another status as needed
-    //                                     'payout' => 'Weekly',
-    //                                     'scheduled_for' => $nextPaymentDate,
-    //                                 ];
-    //                                 return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
-    //                                 }
-    //                             }
-    //                         }
-    //                         if($user2->payload=='15 Days'){
-    //                             $nextPaymentDate = now()->addDays(15); // Date one week from now
-    //                             // Create a new transaction record
-    //                             $transactionrecord=Transaction::where('payout',$user2->payload)->first();
-    //                             Transaction::create([
-    //                                 'farmer_id' => $user1->id, // Adjust according to your logic
-    //                                 'milkman_id' => $user2->id,
-    //                                 'amount' =>(string) $total_cost_2,
-    //                                 'status' => 'Pending', // Or another status as needed
-    //                                 'payout' => 'Weekly',
-    //                                 'scheduled_for' => $nextPaymentDate, // Assuming you have this column
-    //                             ]);
-    //                             $response=[
-    //                                 'amount' => $total_cost_2,
-    //                                 'status' => 'Pending', // Or another status as needed
-    //                                 'payout' => 'Weekly',
-    //                                 'scheduled_for' => $nextPaymentDate,
-    //                             ];
-    //                             return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
-    //                         }
-    //                         if($user2->payload=='Monthly'){
-    //                             $nextPaymentDate = now()->addMonth(); // Date one week from now
-    //                             // Create a new transaction record
-    //                             Transaction::create([
-    //                                 'farmer_id' => $user1->id, // Adjust according to your logic
-    //                                 'milkman_id' => $user2->id,
-    //                                 'amount' =>(string) $total_cost_2,
-    //                                 'status' => 'Pending', // Or another status as needed
-    //                                 'payout' => 'Weekly',
-    //                                 'scheduled_for' => $nextPaymentDate, // Assuming you have this column
-    //                             ]);
-    //                             $response=[
-    //                                 'amount' => $total_cost_2,
-    //                                 'status' => 'Pending', // Or another status as needed
-    //                                 'payout' => 'Weekly',
-    //                                 'scheduled_for' => $nextPaymentDate,
-    //                             ];
-    //                             return response()->json(['result'=>'1','data'=>[$response],'message'=>'supplied details are invalid']);
-    //                     }
-    //             }
-    //             else{
-    //                 return response()->json(['result'=>'0','data'=>[],'message'=>'supplied details are invalid']);
-    //             }
-    //         }
-    //     }
-    // }
-    #16
-    public function transaction(Request $request){
+    #20
+    public function review(Request $request){
         $data=$request->all();
-        $user1=array_map('trim',explode(',',$data['user_id_1']));
-        $user2=array_map('trim',explode(',',$data['user_id_2']));
-        $status[]= $data['status'];
-        $paymentuser=User::where('id',$user2)->first();
-        if(!$paymentuser){
-            return response()->json(['result'=>'0','data'=>[],'message'=>'user not found']);
-        }
-        // dd($paymentuser->payload);
-        $action=[];
-        foreach($status as $statuses){
-            if($statuses=='1'){
-                $action[]='All';
-            }
-            if($statuses=='2'){
-                $action[]='Pending';
-            }
-            if($statuses=='3'){
-                $action[]='Recieved';
-            }
-            // dd($action);
-        }
-        if($paymentuser->role=='Milkman'){
-            if(in_array('All',$action)){
-                $alltransactions=Transaction::where('milkman_id',$user2)->first();
-                // dd($alltransactions);
-                if(!empty($alltransactions)){
-                    if($alltransactions->status=='Pending'){
-                        $photo=asset('storage/assets/pending.jpg');
-                    }
-                    if($alltransactions->status=='Recieved'){
-                        $photo=asset('storage/assets/money.png');
-                    }
-                    if($alltransactions->status=='Requested'){
-                        $photo=asset('storage/assets/user-avatar.png');
-                    }
-                    $response=[
-                        'action_flag'=>'All',
-                        'photo'=>$photo,
-                        "amount"=> (string) $alltransactions->amount,
-                        "status"=> (string) $alltransactions->status,
-                        "payout"=> (string) $alltransactions->payout,
-                        'date'=>Carbon::parse($alltransactions->created_at)->format('d-m-Y')
-                    ];
-                    return response()->json(['result'=>'1','data'=>[$response],'message'=>'fetched']);
-                }
-                else{
-                    return response()->json(['result'=>'0','data'=>[],'message'=>'Transactions not found']);
-                }
-            }
-            if(in_array('Pending',$action)){
-                $transactions=Transaction::where('milkman_id',$user2)
-                        ->where('status',$action)
-                        ->first();
-                        if(!empty($transactions)){
-                            $response=[
-                                'action_flag'=>'Pending',
-                                'photo'=>asset('storage/assets/pending.jpg'),
-                                "amount"=> (string) $transactions->amount,
-                                "status"=> (string) $transactions->status,
-                                "payout"=> (string) $transactions->payout,
-                                'date'=>Carbon::parse($transactions->created_at)->format('d-m-Y'),
-                            ];
-                            return response()->json(['result'=>'1','data'=>[$response],'message'=>'fetched']);
-                        }
-                        else{
-                            return response()->json(['result'=>'0','data'=>[],'message'=>'Transactions not found']);
-                        }
-            }
-            if(in_array('Recieved',$action)){
+        $user_id=$data['user_id'];
+        $reviewer_id=$data['reviewer_id'];
+        $rating=$data['rating'];
+        $feedback=$data['feedback'];
 
-           $transactions=Transaction::where('milkman_id',$user2)
-                        ->where('status',$action)
-                        ->first();
-
-                if(!empty($transactions)){
-                    $response=[
-                        'action_flag'=>'Recieved',
-                        'photo'=>asset('storage/assets/money.png'),
-                        "amount"=> (string) $transactions->amount,
-                        "status"=> (string) $transactions->status,
-                        "payout"=> (string) $transactions->payout,
-                        'date'=>Carbon::parse($transactions->created_at)->format('d-m-Y')
-                    ];
-                    return response()->json(['result'=>'1','data'=>[$response],'message'=>'fetched']);
-                }
-                else{
-                    return response()->json(['result'=>'0','data'=>[],'message'=>'Transactions not found']);
-                }
+        $user=User::where('id',$user_id)->first();
+        $reviewer=User::where('id',$reviewer_id)->first();
+        if($rating && $feedback){
+            $validator=Validator::make($data,[
+                'rating'=>'required|between:1,2,3,4,5',
+                'feedback'=>'required|min:5'
+            ]);
+            if($validator->fails()){
+                return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(",","|",implode(",",$validator->errors()->all()))], 422);
             }
+            $reviews=Review::create([
+                'user_id'=>$user->id,
+                'reviewer_id'=>$reviewer->id,
+                'ratings'=>$rating,
+                'feedback'=>$feedback
+            ]);
+            return response()->json(['result'=>'1','data'=>[$data],'message'=>'review submitted']);
+        }
+        else{
+            $reviews = Review::with('reviewer')->where('reviewer_id', $reviewer_id)->get();
+            foreach($reviews as $review){
+                    $response[]=[
+                        'user_id'=>$review->user_id,
+                        'reviewer_id'=>$review->reviewer_id,
+                        'name'=>$review->reviewer->name,
+                        'ratings'=>$review->ratings,
+                        'feedback'=>$review->feedback
+                    ];
+            }
+            return response()->json(['result'=>'1','data'=>$response,'message'=>'all reviews']);
         }
     }
 }

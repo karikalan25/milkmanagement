@@ -23,9 +23,9 @@ Route::post('/record', [RegisterUser::class, 'record']);
 
 Route::post('/notes',[RegisterUser::class,'notes']);
 
-Route::get('/farmerdetails',[RegisterUser::class,'farmerdetails']);
+Route::get('/farmerandmilkmandetails',[RegisterUser::class,'farmerandmilkmandetails']);
 
-Route::get('/milkmandetails',[RegisterUser::class,'milkmandetails']);
+Route::get('/filterusers',[RegisterUser::class,'filterusers']);
 
 Route::post('/sendrequest',[RegisterUser::class,'sendrequest']);
 
@@ -47,6 +47,4 @@ Route::get('/supplyrecords',[RegisterUser::class,'supplyrecords']);
 
 Route::post('updateuser', [RegisterUser::class,'updateuser']);
 
-Route::post('/transaction',[RegisterUser::class,'transaction']);
-
-Route::post('/createtransactions',[RegisterUser::class,'createtransactions']);
+Route::post('/review',[RegisterUser::class,'review']);
