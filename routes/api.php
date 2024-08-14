@@ -48,3 +48,9 @@ Route::get('/supplyrecords',[RegisterUser::class,'supplyrecords']);
 Route::post('updateuser', [RegisterUser::class,'updateuser']);
 
 Route::post('/review',[RegisterUser::class,'review']);
+
+Route::get('/transactions',[RegisterUser::class,'transactions']);
+
+Route::post('/requesttransaction',[RegisterUser::class,'requesttransaction']);
+
+Route::post('/society',[RegisterUser::class,'society']);

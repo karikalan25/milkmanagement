@@ -1312,5 +1312,244 @@
         </form>
     </fieldset>
     <br><br>
+    {{-- Farmer and Milkman transactions API --}}
+     <fieldset>
+        <form name="form" method="get" action="http://127.0.0.1:8000/api/transactions">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">21. View all transactions[Transaction]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/transactions </div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>User_1</td>
+                                <td><input type="text" name="user_1" id="user_1"></td>
+                                <td>user_1</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>User_2</td>
+                                <td><input type="text" name="user_2" id="user_2"></td>
+                                <td>user_2</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Request Transaction API --}}
+    <fieldset>
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/requesttransaction">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">22. Milkman requesting a transaction [ Transaction ]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/requesttransaction</div>
+                        <div><strong>Method: </strong>GET</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Transaction_id</td>
+                                <td><input type="text" name="transaction_id" id="transaction_id"></td>
+                                <td>transaction_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Sender_id</td>
+                                <td><input type="text" name="sender_id" id="sender_id"></td>
+                                <td>sender_id</td>
+                                <td>Yes</td>
+                                <td>Milkman_id</td>
+                            </tr>
+                            <tr>
+                                <td>Reciever_id</td>
+                                <td><input type="text" name="reciever_id" id="reciever_id"></td>
+                                <td>reciever_id</td>
+                                <td>Yes</td>
+                                <td>Farmer_id</td>
+                            </tr>
+                            <tr>
+                                <td>Paid Amount</td>
+                                <td><input type="text" name="paid" id="paid"></td>
+                                <td>paid</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Payment mode</td>
+                                <td><input type="text" name="payment_mode" id="payment_mode"></td>
+                                <td>payment_mode</td>
+                                <td>Yes</td>
+                                <td>1 (Cash) <br>2 (UPI) <br>3 (Both)</td>
+                            </tr>
+                            <tr>
+                                <td>Cash</td>
+                                <td><input type="text" name="cash" id="cash"></td>
+                                <td>cash</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Upi</td>
+                                <td><input type="text" name="upi" id="upi"></td>
+                                <td>upi</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Proof</td>
+                                <td><input type="text" name="proof" id="proof"></td>
+                                <td>proof</td>
+                                <td>Yes</td>
+                                <td>Photo</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Society API --}}
+    <fieldset>
+        <form name="form" method="POST" action="http://127.0.0.1:8000/api/society">
+            <table border="0" width="100%">
+                <tr>
+                    <td height="30" colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">23. Society [ Farmer or Milkman ]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/society</div>
+                        <div><strong>Method:</strong> POST</div>
+                        <div><strong>Content-Type:</strong> application/x-www-form-urlencoded [i.e. x-www-form-urlencoded]</div>
+                        <div><strong>API Mode:</strong> Development</div>
+                        <div><strong>Notes:</strong> Last Modified at : 06-Oct-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width="100%" border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Name</td>
+                                <td><input type="text" name="name" class="name"/></td>
+                                <td>name</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Timing</td>
+                                <td><input type="text" name="timing" class="timing"/></td>
+                                <td>timing</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Incharge Name</td>
+                                <td>
+                                    <input type="text" name="incharge" class="incharge"/>
+                                </td>
+                                <td>incharge</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Contact</td>
+                                <td><input type="text" name="contact" class="contact"/></td>
+                                <td>contact</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Address</td>
+                                <td><input type="text" name="address" class="address"/></td>
+                                <td>address</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Cow Milk</td>
+                                <td><input type="text" name="cow" class="cow"/></td>
+                                <td>cow</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Buffalo Milk</td>
+                                <td><input type="text" name="buffalo" class="buffalo"/></td>
+                                <td>buffalo</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>About</td>
+                                <td>
+                                    <input type="input" name="about" class="about"/>
+                                </td>
+                                <td>about</td>
+                                <td>Yes</td>
+                                <td>-
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Society Photo</td>
+                                <td><input type="text" name="photo" class="photo"/></td>
+                                <td>photo</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
 </body>
 </html>

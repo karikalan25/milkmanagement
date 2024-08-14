@@ -10,6 +10,7 @@ use App\Models\Farmersupply;
 use App\Models\Milkmansupply;
 use App\Models\Record;
 use App\Models\Review;
+use App\Models\Society;
 use App\Models\Transaction;
 use App\Models\WithdrawSupply;
 use Carbon\Carbon;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Lcobucci\JWT\Validation\ValidAt;
 
 class RegisterUser extends Controller
 {   #1
@@ -1127,6 +1129,10 @@ class RegisterUser extends Controller
                 $breeds='Buffalo';
             }
         }
+        $default=Record::where('user_id',$supply_id)->first();
+        $user=User::where('id',$reciever_id)->first();
+        $payload=$user->payload;
+
         // dd($breeds);
         $today=now()->startOfDay();
         $existingRecord=Milkmansupply::where('reciever_id',$reciever_id)
@@ -1139,7 +1145,7 @@ class RegisterUser extends Controller
             $morninglitre=(string)$morning ? (float)$morning :0;
             $eveninglitre=(string)$evening ? (float)$evening :0;
             $totallitre=(string) $morninglitre + $eveninglitre;
-            $totalprice=$price && $price !== '' ? (int) $price : $existingRecord->price;
+            $totalprice=$price && $price !== '' ? (int) $price : $default->price;
             $amount = $totallitre * $totalprice;
 
             $days=now()->diffInDays($existingRecord->created_at);
@@ -1153,6 +1159,9 @@ class RegisterUser extends Controller
                 'total'=>$totallitre,
                 'price'=>$amount
             ]);
+
+            $this->updateOrCreateTransaction($reciever_id, $supply_id,$payload);
+
             $response = [
                 'breed' => $breeds,
                 'morning' =>(string) $morninglitre,
@@ -1162,7 +1171,6 @@ class RegisterUser extends Controller
             return response()->json(['result'=>'1','data'=>[$response],'message'=>'Supply records updated']);
         }
         else{
-            $default=Record::where('user_id',$supply_id)->first();
             $morninglitre=(string)$morning ? (float)$morning :0;
             $eveninglitre=(string)$evening ? (float)$evening :0;
             $totallitre=(string) $morninglitre + $eveninglitre;
@@ -1178,6 +1186,7 @@ class RegisterUser extends Controller
                 'total'=>$totallitre,
                 'price'=>$amount
             ]);
+            $this->updateOrCreateTransaction($reciever_id, $supply_id,$payload);
             $response = [
                     'breed' => $breeds,
                     'morning' =>(string) $morninglitre,
@@ -1186,6 +1195,57 @@ class RegisterUser extends Controller
                 ];
                 return response()->json(['result'=>'1','data'=>[$response],'message'=>'Supply records created']);
             }
+    }
+    #transaction create and update in supply
+    protected function updateOrCreateTransaction($reciever_id, $supply_id,$payload)
+    {
+        $query = Transaction::where('sender_id', $supply_id)
+            ->where('reciever_id', $reciever_id)
+            ->where('status', 'pending');
+
+        switch ($payload) {
+            case 'weekly':
+                $startDate = now()->startOfWeek();
+                $endDate = now()->endOfWeek();
+                break;
+            case '15_days':
+                $startDate = now()->subDays(14)->startOfDay();
+                $endDate = now()->endOfDay();
+                break;
+            case 'monthly':
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+                break;
+            default:
+                $startDate = now()->startOfDay();
+                $endDate = now()->endOfDay();
+                break;
+        }
+
+        $transaction = $query->whereBetween('created_at', [$startDate, $endDate])->first();
+        $milkman=Milkmansupply::where('reciever_id',$reciever_id)
+                                ->where('supply_id',$supply_id)
+                                ->get();
+        $price=[];
+        foreach($milkman as $supply){
+            $price[]=$supply->price;
+        }
+        $amount=array_sum($price);
+        // dd($amount);
+        if ($transaction) {
+            // Update existing transaction
+            $transaction->update([
+                'paid_amount' => $amount,
+            ]);
+        } else {
+            // Create new transaction
+            Transaction::create([
+                'sender_id' => $supply_id,
+                'reciever_id' => $reciever_id,
+                'paid_amount' => $amount,
+                'status' => 'pending'
+            ]);
+        }
     }
     #15
     public function supplyrecords(Request $request) {
@@ -1866,5 +1926,353 @@ class RegisterUser extends Controller
             }
             return response()->json(['result'=>'1','data'=>$response,'message'=>'all reviews']);
         }
+    }
+    #21
+    public function transactions(Request $request){
+        $data=$request->all();
+        $user_1=$data['user_1'];
+        $user_2=$data['user_2'];
+
+        $user1_details=User::find($user_1);
+        $user2_details=User::find($user_2);
+
+        $role=$user1_details->role;
+        if($role=='Farmer'){
+            $transactions=Transaction::where('sender_id',$user_2)->where('reciever_id',$user_1)->get();
+        // dd($transactions);
+        $response=[];
+        foreach ($transactions as $transaction){
+            $response[]=[
+                'trasaction_id'=>$transaction->id,
+                'sender_id'=>$transaction->sender_id,
+                'sender_name'=>$user2_details->name,
+                'sender_photo'=>asset('/storage/profile_images/'.$user2_details->profile_image),
+                'reciever_id'=>$transaction->reciever_id,
+                'tobepaid'=>$transaction->paid_amount,
+                'recieved_amount'=>$transaction->recieved_amount,
+                'balance_amount'=>$transaction->balance_amount,
+                'payment_method'=>$transaction->payment_method,
+                'cash'=>$transaction->cash,
+                'upi'=>$transaction->upi,
+                'proof'=>asset('/storage/proof_images/'.$transaction->proof),
+            ];
+        }
+        return response()->json(['result'=>'0','data'=>$response,'message'=>'fetched']);
+        }
+        if($role=='Milkman'){
+            $transactions=Transaction::where('sender_id',$user_1)->where('reciever_id',$user_2)->get();
+        // dd($transactions);
+        $response=[];
+        foreach ($transactions as $transaction){
+            if($transaction->balance){
+                $response[]=[
+                    'trasaction_id'=>$transaction->id,
+                    'sender_id'=>$transaction->sender_id,
+                    'reciever_name'=>$user2_details->name,
+                    'reciever_photo'=>asset('/storage/profile_images/'.$user2_details->profile_image),
+                    'reciever_id'=>$transaction->reciever_id,
+                    'tobepaid'=>$transaction->paid_amount,
+                    'payment_method'=>$transaction->payment_method,
+                    'cash'=>$transaction->cash,
+                    'upi'=>$transaction->upi,
+                    'proof'=>asset('/storage/proof_images/'.$transaction->proof),
+                    'recieved'=>[
+                        'recieved_amount'=>$transaction->recieved_amount,
+                    ],
+                    'pending'=>[
+                        'balance_amount'=>$transaction->balance_amount,
+                    ],
+                ];
+            }
+            else{
+                $response[]=[
+                    'trasaction_id'=>$transaction->id,
+                    'sender_id'=>$transaction->sender_id,
+                    'reciever_name'=>$user2_details->name,
+                    'reciever_photo'=>asset('/storage/profile_images/'.$user2_details->profile_image),
+                    'reciever_id'=>$transaction->reciever_id,
+                    'tobepaid'=>$transaction->paid_amount,
+                    'payment_method'=>$transaction->payment_method,
+                    'cash'=>$transaction->cash,
+                    'upi'=>$transaction->upi,
+                    'proof'=>asset('/storage/proof_images/'.$transaction->proof),
+                    'recieved'=>[
+                        'recieved_amount'=>$transaction->recieved_amount,
+                    ],
+                    'pending'=>[
+                        'balance_amount'=>$transaction->balance_amount,
+                    ],
+                ];
+            }
+        }
+        return response()->json(['result'=>'0','data'=>$response,'message'=>'fetched']);
+        }
+    }
+    #22
+    public function requesttransaction(Request $request){
+        $data=$request->all();
+        $transaction_id=$request->transaction_id;
+        $sender_id=$request->sender_id;
+        $reciever_id=$request->reciever_id;
+        $paid=$request->paid;
+        $payment_mode=array_map('trim',explode(',',$request->payment_mode));
+        $cash=$request->cash;
+        $upi=$request->upi;
+        $proof=$request->proof;
+
+        $reciever=User::find($reciever_id);
+        $rules=[
+            'paid'=>'required',
+            'payment_mode'=>'required'
+        ];
+        if(in_array(1,$payment_mode)){
+            $rules['payment_mode']='required';
+        }
+        if(in_array(2,$payment_mode)){
+            $rules['upi']='required';
+            $rules['proof']='required';
+        }
+        if(in_array(1,$payment_mode) && in_array(2,$payment_mode)){
+            $rules['cash']='required';
+            $rules['upi']='required';
+            $rules['proof']='required';
+        }
+
+        $payments='';
+        foreach($payment_mode as $mode){
+            if($mode=='1'){
+                $payments='Cash';
+            }
+            if($mode=='2'){
+                $payments='UPI';
+            }
+            if($mode=='3'){
+                $payments='Both';
+            }
+        }
+        $validator=Validator::make($data,$rules);
+        if($validator->fails()){
+            return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(",", "|", implode(",", $validator->errors()->all()))], 422);
+        }
+        $transactions=Transaction::findorFail($transaction_id);
+        $transaction_amount=$transactions->paid_amount;
+        // dd($transaction_amount);
+        if(in_array(1,$payment_mode)){
+            if($paid<$transaction_amount){
+                $total_amount=$paid;
+                $balance=$transaction_amount-$total_amount;
+                $tobepaid=$transaction_amount-$total_amount;
+            }
+            if($paid==$transaction_amount){
+                $total_amount=$paid;
+                $tobepaid='0';
+                $balance='0';
+            }
+            if($paid>$transaction_amount){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'enter correct amount']);
+            }
+        }
+        if(in_array(2,$payment_mode)){
+            if($paid<$transaction_amount){
+                $total_amount=$paid;
+                $balance=$transaction_amount-$total_amount;
+                $tobepaid=$transaction_amount-$total_amount;
+            }
+            if($paid==$transaction_amount){
+                $total_amount=$paid;
+                $tobepaid='0';
+                $balance='0';
+            }
+            if($paid>$transaction_amount){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'enter correct amount']);
+            }
+        }
+        if(in_array(3,$payment_mode)){
+            if($paid<$transaction_amount){
+                $total_amount=$paid;
+                $balance=$transaction_amount-$total_amount;
+                $tobepaid=$transaction_amount-$total_amount;
+                $both=$cash+$upi;
+                if($both==$total_amount){
+                    $cash_amount=$cash;
+                    $upi_amount=$upi;
+                }
+                if($both<$total_amount){
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'enter correct upi or cash']);
+                }
+                if($both>$total_amount){
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'enter correct upi or cash']);
+                }
+            }
+            if($paid==$transaction_amount){
+                $total_amount=$paid;
+                $both=$cash+$upi;
+                $tobepaid='0';
+                $balance='0';
+                if($both==$total_amount){
+                    $cash_amount=$cash;
+                    $upi_amount=$upi;
+                }
+                if($both<$total_amount){
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'enter correct upi or cash']);
+                }
+                if($both>$total_amount){
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'enter correct upi or cash']);
+                }
+            }
+            if($paid>$transaction_amount){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'enter correct amount']);
+            }
+        }
+        $base64image = $request->proof ?? null;
+        $image = base64_decode($base64image);
+        $fileName = 'proof_' .'user'. $sender_id . '_' . '.jpg';
+        $filePath = storage_path('app/public/proof_images/' . $fileName);
+        if (file_put_contents($filePath, $image)) {
+            $imageUrl = asset('storage/proof_images/' . $fileName);
+        } else {
+            return response()->json(['result' => '0', 'data' => [], 'message' => 'Failed to save the image'], 500);
+        }
+        if($transaction_amount){
+            if($balance){
+                Transaction::create([
+                    'sender_id'=>$sender_id,
+                    'reciever_id'=>$reciever_id,
+                    'paid_amount'=>$tobepaid,
+                    'recieved_amount'=>$total_amount,
+                    'balance_amount'=>$balance,
+                    'payment_method'=>$payments,
+                    'cash'=>$cash_amount,
+                    'upi'=>$upi_amount,
+                    'proof'=>$fileName,
+                    'status'=>'pending'
+                ]);
+                $response=[
+                    'sender_id'=>$sender_id,
+                    'reciever_id'=>$reciever_id,
+                    'reciever_name'=>$reciever->name,
+                    'reciever_photo'=>asset('storage/profile_images/'.$reciever->profile_image),
+                    'payment_method'=>$payments,
+                    'cash'=>$cash_amount,
+                    'upi'=>$upi_amount,
+                    'proof'=>$imageUrl,
+                    'recieved'=>[
+                        'recieved_amount'=>$total_amount
+                    ],
+                    'pending'=>[
+                        'balance_amount'=>$balance,
+                    ]
+            ];
+            }else{
+                $transactions->update([
+                    'sender_id'=>$sender_id,
+                    'reciever_id'=>$reciever_id,
+                    'paid_amount'=>$tobepaid,
+                    'recieved_amount'=>$total_amount,
+                    'balance_amount'=>$balance ?? '0',
+                    'payment_method'=>$payments,
+                    'cash'=>$cash_amount,
+                    'upi'=>$upi_amount,
+                    'proof'=>$fileName,
+                    'status'=>'recieved'
+                ]);
+                $response=[
+                    'sender_id'=>$sender_id,
+                    'reciever_id'=>$reciever_id,
+                    'reciever_name'=>$reciever->name,
+                    'reciever_photo'=>asset('storage/profile_images/'.$reciever->profile_image),
+                    'payment_method'=>$payments,
+                    'cash'=>$cash_amount,
+                    'upi'=>$upi_amount,
+                    'proof'=>$imageUrl,
+                    'recieved'=>[
+                        'recieved_amount'=>$total_amount
+                    ],
+                    'pending'=>[
+                        'balance_amount'=>$balance,
+                    ]
+            ];
+            }
+            return response()->json(['result'=>'0','data'=>[$response],'message'=>'payment request sent']);
+        }
+        else{
+            return response()->json(['result'=>'0','data'=>[],'message'=>'no more transacation']);
+        }
+    }
+    public function society(Request $request){
+        $data=$request->all();
+        $name=$data['name'];
+        if (isset($data['timing'])) {
+            $timingParts = explode(',', $data['timing']);
+            if (count($timingParts) == 2) {
+                $startTime = $this->formatTime($timingParts[0]);
+                $endTime = $this->formatTime($timingParts[1]);
+                $data['timing'] = $startTime . ' to ' . $endTime;
+            }
+        }
+        $incharge=$data['incharge'];
+        $contact=$data['contact'];
+        $address=$data['address'];
+        $cow=$data['cow'];
+        $buffalo=$data['buffalo'];
+        $about=$data['about'];
+        $photo=$data['photo'];
+        // dd($data['timing']);
+        $validator=Validator::make($data,[
+            'name'=>'required',
+            'timing'=>'required',
+            'incharge'=>'required',
+            'contact'=>'required',
+            'address'=>'required',
+            'cow'=>'required',
+            'buffalo'=>'required',
+            'about'=>'required',
+            'photo'=>'required',
+        ]);
+        if($validator->fails()){
+            return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(",", "|", implode(",", $validator->errors()->all()))], 422);
+        }
+        $base64image = $photo ?? null;
+        $image = base64_decode($base64image);
+        $fileName = 'proof_' .'user'. $name . '_' . '.jpg';
+        $filePath = storage_path('app/public/society/' . $fileName);
+        if (file_put_contents($filePath, $image)) {
+            $imageUrl = asset('storage/society/' . $fileName);
+        } else {
+            return response()->json(['result' => '0', 'data' => [], 'message' => 'Failed to save the image'], 500);
+        }
+
+        Society::create([
+            'name'=>$name,
+            'timing'=>$data['timing'],
+            'incharge'=>$incharge,
+            'contact'=>$contact,
+            'address'=>$address,
+            'cow'=>$cow,
+            'buffalo'=>$buffalo,
+            'about'=>$about,
+            'photo'=>$fileName,
+        ]);
+
+        $response=[
+            'name'=>$name,
+            'timing'=>$data['timing'],
+            'incharge'=>$incharge,
+            'contact'=>$contact,
+            'address'=>$address,
+            'cow'=>$cow,
+            'buffalo'=>$buffalo,
+            'about'=>$about,
+            'photo'=>$imageUrl,
+        ];
+
+        return response()->json(['result'=>'0','data'=>[$response],'message'=>'created']);
+    }
+    private function formatTime($time) {
+        $hour = intval($time);
+        $suffix = $hour >= 12 ? 'PM' : 'AM';
+        $hour = $hour > 12 ? $hour - 12 : $hour;
+        $hour = $hour == 0 ? 12 : $hour; // handle midnight (0:00 AM)
+        return $hour . ':00 ' . $suffix;
     }
 }

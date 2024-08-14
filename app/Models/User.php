@@ -53,13 +53,23 @@ class User extends Authenticatable
     public function withdrawsupplies(){
         return $this->hasMany(WithdrawSupply::class,'id');
     }
-    public function transactions(){
-        return $this->hasMany(Transaction::class);
+    public function sentTransactions()
+    {
+        return $this->hasMany(Transaction::class, 'sender_id');
+    }
+
+    /**
+     * Get the transactions where the user is the receiver.
+     */
+    public function receivedTransactions()
+    {
+        return $this->hasMany(Transaction::class, 'reciever_id');
     }
     public function reviewsGiven()
     {
         return $this->hasMany(Review::class, 'reviewer_id');
     }
+
     /**
      * The attributes that should be hidden for serialization.
      *
