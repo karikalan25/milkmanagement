@@ -1251,74 +1251,13 @@
         </form>
     </fieldset>
     <br><br>
-    {{-- Farmer and Milkman reviews API --}}
-    <fieldset>
-        <form name="form" method="post" action="http://127.0.0.1:8000/api/review">
-            <table border="0" width="100%">
-                <tr>
-                    <td height=30 colspan="2" align="left">
-                        <strong style="text-decoration:underline;color:#F00;">20. Farmer and Milkman reviews</strong><br>
-                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/review </div>
-                        <div><strong>Method: </strong>POST</div>
-                        <div><strong>API Mode: </strong>Development</div>
-                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" align="center">
-                        <table width=100% border="0" cellspacing="2" cellpadding="2">
-                            <tr style="background-color:#162133; color:#FFF;">
-                                <td><strong>Label Name</strong></td>
-                                <td><strong>Value</strong></td>
-                                <td><strong>Variable Name</strong></td>
-                                <td><strong>Mandatory</strong></td>
-                                <td><strong>Notes</strong></td>
-                            </tr>
-                            <tr>
-                                <td>User_id</td>
-                                <td><input type="text" name="user_id" id="user_id"></td>
-                                <td>user_id</td>
-                                <td>Yes</td>
-                                <td>-</td>
-                            </tr>
-                            <tr>
-                                <td>Reviewer_id</td>
-                                <td><input type="text" name="reviewer_id" id="reviewer_id"></td>
-                                <td>reviewer_id</td>
-                                <td>Yes</td>
-                                <td>-</td>
-                            </tr>
-                            <tr>
-                                <td>Rating</td>
-                                <td><input type="text" name="rating" id="rating"></td>
-                                <td>rating</td>
-                                <td>Yes</td>
-                                <td>-</td>
-                            </tr>
-                            <tr>
-                                <td>Feedback</td>
-                                <td><input type="text" name="feedback" id="feedback"></td>
-                                <td>feedback</td>
-                                <td>Yes</td>
-                                <td>-</td>
-                            </tr>
-                            <tr>
-                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </form>
-    </fieldset>
-    <br><br>
     {{-- Farmer and Milkman transactions API --}}
      <fieldset>
         <form name="form" method="get" action="http://127.0.0.1:8000/api/transactions">
             <table border="0" width="100%">
                 <tr>
                     <td height=30 colspan="2" align="left">
-                        <strong style="text-decoration:underline;color:#F00;">21. View all transactions[Transaction]</strong><br>
+                        <strong style="text-decoration:underline;color:#F00;">20. View all transactions[Transaction]</strong><br>
                         <div><strong>API URL:</strong> http://127.0.0.1:8000/api/transactions </div>
                         <div><strong>Method: </strong>POST</div>
                         <div><strong>API Mode: </strong>Development</div>
@@ -1365,7 +1304,7 @@
             <table border="0" width="100%">
                 <tr>
                     <td height=30 colspan="2" align="left">
-                        <strong style="text-decoration:underline;color:#F00;">22. Milkman requesting a transaction [ Transaction ]</strong><br>
+                        <strong style="text-decoration:underline;color:#F00;">21. Milkman requesting a transaction [ Transaction ]</strong><br>
                         <div><strong>API URL:</strong> http://127.0.0.1:8000/api/requesttransaction</div>
                         <div><strong>Method: </strong>GET</div>
                         <div><strong>API Mode: </strong>Development</div>
@@ -1454,7 +1393,7 @@
             <table border="0" width="100%">
                 <tr>
                     <td height="30" colspan="2" align="left">
-                        <strong style="text-decoration:underline;color:#F00;">23. Society [ Farmer or Milkman ]</strong><br>
+                        <strong style="text-decoration:underline;color:#F00;">22. Society [ Farmer or Milkman ]</strong><br>
                         <div><strong>API URL:</strong> http://127.0.0.1:8000/api/society</div>
                         <div><strong>Method:</strong> POST</div>
                         <div><strong>Content-Type:</strong> application/x-www-form-urlencoded [i.e. x-www-form-urlencoded]</div>
@@ -1510,16 +1449,16 @@
                                 <td>-</td>
                             </tr>
                             <tr>
-                                <td>Cow Milk</td>
-                                <td><input type="text" name="cow" class="cow"/></td>
-                                <td>cow</td>
+                                <td>Breed</td>
+                                <td><input type="text" name="breed" class="breed"/></td>
+                                <td>breed</td>
                                 <td>Yes</td>
-                                <td>-</td>
+                                <td>1(Cow) <br>2(Buffalo) <br>1,2(Cow,Buffalo)</td>
                             </tr>
                             <tr>
-                                <td>Buffalo Milk</td>
-                                <td><input type="text" name="buffalo" class="buffalo"/></td>
-                                <td>buffalo</td>
+                                <td>Price</td>
+                                <td><input type="text" name="price" class="price"/></td>
+                                <td>price</td>
                                 <td>Yes</td>
                                 <td>-</td>
                             </tr>
@@ -1541,6 +1480,174 @@
                                 <td>-</td>
                             </tr>
                             <tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- View Society and filter --}}
+    <fieldset>
+        <form name="form" method="get" action="http://127.0.0.1:8000/api/viewsociety">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">23. View and filter society </strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/viewsociety </div>
+                        <div><strong>Method: </strong>GET</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>User_id</td>
+                                <td><input type="text" name="user_id" id="user_id"></td>
+                                <td>user_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Society_id</td>
+                                <td><input type="text" name="society_id" id="society_id"></td>
+                                <td>society_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Buys</td>
+                                <td><input type="text" name="buys" id="buys"></td>
+                                <td>buys</td>
+                                <td>Yes</td>
+                                <td>1(Cow) <br>2(Buffalo) <br>3(Cow & Buffalo)</td>
+                            </tr>
+                            <tr>
+                                <td>Address</td>
+                                <td><input type="text" name="address" id="address"></td>
+                                <td>address</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    {{-- Farmer and Milkman reviews API --}}
+    <fieldset>
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/review">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">24. Farmer and Milkman reviews</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/review </div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Review_id</td>
+                                <td><input type="text" name="review_id" id="review_id"></td>
+                                <td>review_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>User_id</td>
+                                <td><input type="text" name="user_id" id="user_id"></td>
+                                <td>user_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Reviewer_id</td>
+                                <td><input type="text" name="reviewer_id" id="reviewer_id"></td>
+                                <td>reviewer_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Rating</td>
+                                <td><input type="text" name="rating" id="rating"></td>
+                                <td>rating</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Feedback</td>
+                                <td><input type="text" name="feedback" id="feedback"></td>
+                                <td>feedback</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </fieldset>
+    <br><br>
+    {{-- Delete user account API --}}
+    <fieldset>
+        <form name="form" method="post" action="http://127.0.0.1:8000/api/deleteaccount">
+            <table border="0" width="100%">
+                <tr>
+                    <td height=30 colspan="2" align="left">
+                        <strong style="text-decoration:underline;color:#F00;">25. Delete Account[User account]</strong><br>
+                        <div><strong>API URL:</strong> http://127.0.0.1:8000/api/deleteaccount </div>
+                        <div><strong>Method: </strong>POST</div>
+                        <div><strong>API Mode: </strong>Development</div>
+                        <div><strong>Notes: </strong>Last Modified at: 06-Occt-2022</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <table width=100% border="0" cellspacing="2" cellpadding="2">
+                            <tr style="background-color:#162133; color:#FFF;">
+                                <td><strong>Label Name</strong></td>
+                                <td><strong>Value</strong></td>
+                                <td><strong>Variable Name</strong></td>
+                                <td><strong>Mandatory</strong></td>
+                                <td><strong>Notes</strong></td>
+                            </tr>
+                            <tr>
+                                <td>User Id</td>
+                                <td><input type="text" name="user_id" id="user_id"></td>
+                                <td>user_id</td>
+                                <td>Yes</td>
+                                <td>-</td>
+                            </tr>
                             <tr>
                                 <td colspan="1" align="center"><input type="submit" value="Submit"/></td>
                             </tr>

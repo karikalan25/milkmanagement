@@ -54,3 +54,7 @@ Route::get('/transactions',[RegisterUser::class,'transactions']);
 Route::post('/requesttransaction',[RegisterUser::class,'requesttransaction']);
 
 Route::post('/society',[RegisterUser::class,'society']);
+
+Route::get('/viewsociety',[RegisterUser::class,'viewsociety']);
+
+Route::post('/deleteaccount',[RegisterUser::class,'deleteaccount']);

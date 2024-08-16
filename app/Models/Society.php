@@ -15,8 +15,8 @@ class Society extends Model
         'incharge',
         'contact',
         'address',
-        'cow',
-        'buffalo',
+        'breed',
+        'price',
         'about',
         'photo'
     ];

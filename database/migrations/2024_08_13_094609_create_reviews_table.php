@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('reviewer_id')->constrained('users')->onDelete('cascade');
             $table->string('ratings',5)->nullable()->default(0);
             $table->text('feedback');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

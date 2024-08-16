@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('incharge');
             $table->string('contact');
             $table->string('address');
-            $table->string('cow');
-            $table->string('buffalo');
+            $table->string('breed');
+            $table->string('price');
             $table->string('about');
             $table->string('photo');
             $table->timestamps();

@@ -22,8 +22,7 @@ use Lcobucci\JWT\Validation\ValidAt;
 
 class RegisterUser extends Controller
 {   #1
-    public function register(Request $request)
-    {
+    public function register(Request $request){
         // Split the supply values into an array
         $supply = array_map('trim', explode(',', $request->input('supply'))); // Trim whitespace
         $litres = array_map('trim', explode(',',$request->input('litres')));
@@ -1197,8 +1196,7 @@ class RegisterUser extends Controller
             }
     }
     #transaction create and update in supply
-    protected function updateOrCreateTransaction($reciever_id, $supply_id,$payload)
-    {
+    protected function updateOrCreateTransaction($reciever_id, $supply_id,$payload){
         $query = Transaction::where('sender_id', $supply_id)
             ->where('reciever_id', $reciever_id)
             ->where('status', 'pending');
@@ -1548,7 +1546,7 @@ class RegisterUser extends Controller
         return response()->json(['result'=>'1','data'=>[],'message'=>'request rejected']);
     }
     #19
-    public function updateuser(Request $request,){
+    public function updateuser(Request $request){
         // Split the supply values into an array
         $data=$request->all();
         $id=$data['user_id'];
@@ -1557,7 +1555,6 @@ class RegisterUser extends Controller
         $minimum_price=array_map('trim','explode'(',',$request->input('minimum_price')));
         $maximum_price=array_map('trim',explode(',',$request->input('maximum_price')));
         // dd($minimum_price);
-
         // Base validation rules
         $rules = [
             'name' => 'required|string',
@@ -1888,46 +1885,6 @@ class RegisterUser extends Controller
 
     }
     #20
-    public function review(Request $request){
-        $data=$request->all();
-        $user_id=$data['user_id'];
-        $reviewer_id=$data['reviewer_id'];
-        $rating=$data['rating'];
-        $feedback=$data['feedback'];
-
-        $user=User::where('id',$user_id)->first();
-        $reviewer=User::where('id',$reviewer_id)->first();
-        if($rating && $feedback){
-            $validator=Validator::make($data,[
-                'rating'=>'required|between:1,2,3,4,5',
-                'feedback'=>'required|min:5'
-            ]);
-            if($validator->fails()){
-                return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(",","|",implode(",",$validator->errors()->all()))], 422);
-            }
-            $reviews=Review::create([
-                'user_id'=>$user->id,
-                'reviewer_id'=>$reviewer->id,
-                'ratings'=>$rating,
-                'feedback'=>$feedback
-            ]);
-            return response()->json(['result'=>'1','data'=>[$data],'message'=>'review submitted']);
-        }
-        else{
-            $reviews = Review::with('reviewer')->where('reviewer_id', $reviewer_id)->get();
-            foreach($reviews as $review){
-                    $response[]=[
-                        'user_id'=>$review->user_id,
-                        'reviewer_id'=>$review->reviewer_id,
-                        'name'=>$review->reviewer->name,
-                        'ratings'=>$review->ratings,
-                        'feedback'=>$review->feedback
-                    ];
-            }
-            return response()->json(['result'=>'1','data'=>$response,'message'=>'all reviews']);
-        }
-    }
-    #21
     public function transactions(Request $request){
         $data=$request->all();
         $user_1=$data['user_1'];
@@ -2008,7 +1965,7 @@ class RegisterUser extends Controller
         return response()->json(['result'=>'0','data'=>$response,'message'=>'fetched']);
         }
     }
-    #22
+    #21
     public function requesttransaction(Request $request){
         $data=$request->all();
         $transaction_id=$request->transaction_id;
@@ -2199,6 +2156,7 @@ class RegisterUser extends Controller
             return response()->json(['result'=>'0','data'=>[],'message'=>'no more transacation']);
         }
     }
+    #22
     public function society(Request $request){
         $data=$request->all();
         $name=$data['name'];
@@ -2213,8 +2171,8 @@ class RegisterUser extends Controller
         $incharge=$data['incharge'];
         $contact=$data['contact'];
         $address=$data['address'];
-        $cow=$data['cow'];
-        $buffalo=$data['buffalo'];
+        $breed=array_map('trim',explode(',',$data['breed']));
+        $price=array_map('trim',explode(',',$data['price']));
         $about=$data['about'];
         $photo=$data['photo'];
         // dd($data['timing']);
@@ -2224,8 +2182,8 @@ class RegisterUser extends Controller
             'incharge'=>'required',
             'contact'=>'required',
             'address'=>'required',
-            'cow'=>'required',
-            'buffalo'=>'required',
+            'breed'=>'required',
+            'price'=>'required',
             'about'=>'required',
             'photo'=>'required',
         ]);
@@ -2241,18 +2199,29 @@ class RegisterUser extends Controller
         } else {
             return response()->json(['result' => '0', 'data' => [], 'message' => 'Failed to save the image'], 500);
         }
+        //Process Supply
+        $breeds=[];
+        foreach ($breed as $supplies) {
+            if ($supplies == 1) {
+                $breeds[] = 'Cow';
+            } elseif ($supplies == 2) {
+                $breeds[] = 'Buffalo';
+            }
+        }
 
-        Society::create([
+        foreach($breeds as $index=>$sup){
+            Society::create([
             'name'=>$name,
             'timing'=>$data['timing'],
             'incharge'=>$incharge,
             'contact'=>$contact,
             'address'=>$address,
-            'cow'=>$cow,
-            'buffalo'=>$buffalo,
+            'breed'=>$breeds[$index],
+            'price'=>$price[$index],
             'about'=>$about,
             'photo'=>$fileName,
         ]);
+        }
 
         $response=[
             'name'=>$name,
@@ -2260,8 +2229,8 @@ class RegisterUser extends Controller
             'incharge'=>$incharge,
             'contact'=>$contact,
             'address'=>$address,
-            'cow'=>$cow,
-            'buffalo'=>$buffalo,
+            'breed'=>implode(',',$breeds),
+            'price'=>implode(',',$price),
             'about'=>$about,
             'photo'=>$imageUrl,
         ];
@@ -2274,5 +2243,333 @@ class RegisterUser extends Controller
         $hour = $hour > 12 ? $hour - 12 : $hour;
         $hour = $hour == 0 ? 12 : $hour; // handle midnight (0:00 AM)
         return $hour . ':00 ' . $suffix;
+    }
+    #23
+    public function viewsociety(Request $request){
+        $data=$request->all();
+        #1 Scenario to view current society
+        if($data['user_id']&&$data['society_id']){
+            $user=User::findorFail($data['user_id']);
+            if(!$user){
+                return response()->json(['result'=>'0','data'=>[],'message'=>'unauthorized user']);
+            }
+            $location=$user->address;
+            // Normalize the address to handle cases, extra spaces, etc.
+            $normalizedAddress = strtolower(trim(preg_replace('/\s+/', ' ', $location)));
+
+            if (preg_match('/,\s*([^,]+?)\s*,\s*\d{6}/', $normalizedAddress, $matches)) {
+                $district = ucwords(trim($matches[1]));
+            } else {
+                return response()->json(['result' => '0', 'message' => 'no users found']);
+
+            }
+            $society=Society::where('id',$data['society_id'])
+            ->where('address', 'LIKE', '%' . $district . '%')
+            ->first();
+            $imageUrl=asset('/storage/society/'.$society->photo);
+                $response[]=[
+                    'society_name'=>$society->name,
+                    'timing'=>$society->timing,
+                    'incharge'=>$society->incharge,
+                    'contact'=>$society->contact,
+                    'address'=>$society->address,
+                    'cow'=>$society->cow,
+                    'buffalo'=>$society->buffalo,
+                    'photo'=>$imageUrl,
+                ];
+                return response()->json(['result'=>'1','data'=>$response,'message'=>'fetched']);
+        }
+        #2 Scenario to view the society according to breed
+        if($data['user_id']&&$data['buys']){
+            // dd(1);
+            $buys=[];
+            if($data['buys']=='1'){
+                $buys[]='Cow';
+            }
+            if($data['buys']=='2'){
+                $buys[]='Buffalo';
+            }
+            if($data['buys']=='3'){
+                $buys=['Cow','Buffalo'];
+            }
+            // dd($buys);
+                $user=User::findorFail($data['user_id']);
+                if(!$user){
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'unauthorized user']);
+                }
+                $location=$user->address;
+                // Normalize the address to handle cases, extra spaces, etc.
+                $normalizedAddress = strtolower(trim(preg_replace('/\s+/', ' ', $location)));
+
+                if (preg_match('/,\s*([^,]+?)\s*,\s*\d{6}/', $normalizedAddress, $matches)) {
+                    $district = ucwords(trim($matches[1]));
+                } else {
+                    return response()->json(['result' => '0', 'message' => 'no users found']);
+                }
+                if($data['buys']=='1'){
+                    $society=Society::where('address', 'LIKE', '%' . $district . '%')
+                    ->where('breed',$buys)
+                    ->get();
+                    $response=[];
+                    foreach($society as $soc){
+                        $imageUrl=asset('/storage/society/'.$soc->photo);
+                        $response[]=[
+                            'society_name'=>$soc->name,
+                            'timing'=>$soc->timing,
+                            'incharge'=>$soc->incharge,
+                            'contact'=>$soc->contact,
+                            'address'=>$soc->address,
+                            'breed'=>$soc->breed,
+                            'price'=>$soc->price,
+                            'photo'=>$imageUrl,
+                        ];
+                    }
+                    return response()->json(['result'=>'1','data'=>$response,'message'=>'fetched']);
+                }
+                if($data['buys']=='2'){
+                    $society=Society::where('address', 'LIKE', '%' . $district . '%')
+                    ->where('breed',$buys)
+                    ->get();
+                    $response=[];
+                    foreach($society as $soc){
+                        $imageUrl=asset('/storage/society/'.$soc->photo);
+                        $response[]=[
+                            'society_name'=>$soc->name,
+                            'timing'=>$soc->timing,
+                            'incharge'=>$soc->incharge,
+                            'contact'=>$soc->contact,
+                            'address'=>$soc->address,
+                            'breed'=>$soc->breed,
+                            'price'=>$soc->price,
+                            'photo'=>$imageUrl,
+                        ];
+                    }
+                    return response()->json(['result'=>'1','data'=>$response,'message'=>'fetched']);
+                }
+                if($data['buys']=='3'){
+                    $society = Society::where('address', 'LIKE', '%' . $district . '%')
+                    ->whereIn('breed', $buys)  // Use whereIn for multiple breeds
+                    ->get();
+                    $response = [];
+                    foreach($society as $soc){
+                        $imageUrl = asset('/storage/society/' . $soc->photo);
+                        $response[] = [
+                            'society_name' => $soc->name,
+                            'timing' => $soc->timing,
+                            'incharge' => $soc->incharge,
+                            'contact' => $soc->contact,
+                            'address' => $soc->address,
+                            'breed' => $soc->breed,
+                            'price' => $soc->price,
+                            'photo' => $imageUrl,
+                        ];
+                    }
+                    return response()->json(['result' => '1', 'data' => $response, 'message' => 'fetched']);
+                }
+        }
+        #3 Scenario to view according to address
+        if($data['user_id']&&$data['address']){
+            $user=User::findorfail($data['user_id']);
+            $society=Society::where('address', 'LIKE', '%' . $data['address'] . '%')->get();
+
+            return response()->json(['result'=>'1','data'=>[$society],'message'=>'fetched']);
+        }
+        #4 scenario to view with breed and address
+        if($data['user_id']&&$data['address']&&$data['buys']){
+            $buys=[];
+            if($data['buys']=='1'){
+                $buys[]='Cow';
+            }
+            if($data['buys']=='2'){
+                $buys[]='Buffalo';
+            }
+            if($data['buys']=='3'){
+                $buys=['Cow','Buffalo'];
+            }
+            $user=User::findorFail($data['user_id']);
+                if(!$user){
+                    return response()->json(['result'=>'0','data'=>[],'message'=>'unauthorized user']);
+                }
+                if($data['buys']=='1'){
+                    $society=Society::where('address', 'LIKE', '%' . $data['address'] . '%')
+                    ->where('breed',$buys)
+                    ->get();
+                    $response=[];
+                    foreach($society as $soc){
+                        $imageUrl=asset('/storage/society/'.$soc->photo);
+                        $response[]=[
+                            'society_name'=>$soc->name,
+                            'timing'=>$soc->timing,
+                            'incharge'=>$soc->incharge,
+                            'contact'=>$soc->contact,
+                            'address'=>$soc->address,
+                            'breed'=>$soc->breed,
+                            'price'=>$soc->price,
+                            'photo'=>$imageUrl,
+                        ];
+                    }
+                    return response()->json(['result'=>'1','data'=>$response,'message'=>'fetched']);
+                }
+                if($data['buys']=='2'){
+                    $society=Society::where('address', 'LIKE', '%' . $data['address'] . '%')
+                    ->where('breed',$buys)
+                    ->get();
+                    $response=[];
+                    foreach($society as $soc){
+                        $imageUrl=asset('/storage/society/'.$soc->photo);
+                        $response[]=[
+                            'society_name'=>$soc->name,
+                            'timing'=>$soc->timing,
+                            'incharge'=>$soc->incharge,
+                            'contact'=>$soc->contact,
+                            'address'=>$soc->address,
+                            'breed'=>$soc->breed,
+                            'price'=>$soc->price,
+                            'photo'=>$imageUrl,
+                        ];
+                    }
+                    return response()->json(['result'=>'1','data'=>$response,'message'=>'fetched']);
+                }
+                if($data['buys']=='3'){
+                    $society = Society::where('address', 'LIKE', '%' .$data['address'] . '%')
+                    ->whereIn('breed', $buys)  // Use whereIn for multiple breeds
+                    ->get();
+                    $response = [];
+                    foreach($society as $soc){
+                        $imageUrl = asset('/storage/society/' . $soc->photo);
+                        $response[] = [
+                            'society_name' => $soc->name,
+                            'timing' => $soc->timing,
+                            'incharge' => $soc->incharge,
+                            'contact' => $soc->contact,
+                            'address' => $soc->address,
+                            'breed' => $soc->breed,
+                            'price' => $soc->price,
+                            'photo' => $imageUrl,
+                        ];
+                    }
+                    return response()->json(['result' => '1', 'data' => $response, 'message' => 'fetched']);
+                }
+        }
+        #5 View all societ
+        if($data['user_id']){
+            $user=User::findorfail($data['user_id']);
+            $location=$user->address;
+                // Normalize the address to handle cases, extra spaces, etc.
+                $normalizedAddress = strtolower(trim(preg_replace('/\s+/', ' ', $location)));
+
+                if (preg_match('/,\s*([^,]+?)\s*,\s*\d{6}/', $normalizedAddress, $matches)) {
+                    $district = ucwords(trim($matches[1]));
+                } else {
+                    return response()->json(['result' => '0', 'message' => 'no users found']);
+                }
+            $society=Society::where('address', 'LIKE', '%' . $data['address'] . '%')->get();
+            return response()->json(['result'=>'1','data'=>[$society],'message'=>'fetched']);
+        }
+    }
+    #24
+    public function review(Request $request){
+        $data=$request->all();
+        $review_id=$data['review_id'];
+        $user_id=$data['user_id'];
+        $reviewer_id=$data['reviewer_id'];
+        $rating=$data['rating'];
+        $feedback=$data['feedback'];
+
+        $user=User::where('id',$user_id)->first();
+        $reviewer=User::where('id',$reviewer_id)->first();
+        #1 Create reviews
+        if($user_id&&$reviewer_id&&$rating && $feedback&&!$review_id){
+            $validator=Validator::make($data,[
+                'rating'=>'required|between:1,2,3,4,5',
+                'feedback'=>'required|min:5'
+            ]);
+            if($validator->fails()){
+                return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(",","|",implode(",",$validator->errors()->all()))], 422);
+            }
+            $reviews=Review::create([
+                'user_id'=>$user->id,
+                'reviewer_id'=>$reviewer->id,
+                'ratings'=>$rating,
+                'feedback'=>$feedback
+            ]);
+            return response()->json(['result'=>'1','data'=>[$data],'message'=>'review submitted']);
+        }
+        #2Edit reviews
+        if($review_id&&$user_id&&$reviewer_id&&$rating && $feedback){
+            dd(1);
+            $validator=Validator::make($data,[
+                'rating'=>'required|between:1,2,3,4,5',
+                'feedback'=>'required|min:5'
+            ]);
+            if($validator->fails()){
+                return response()->json(['result'=>'0','data'=>[],'message'=>str_replace(",","|",implode(",",$validator->errors()->all()))], 422);
+            }
+            $reviews=Review::where('id',$review_id)
+                    ->where('user_id',$user_id)
+                    ->where('reviewer_id',$reviewer_id)
+                    ->first();
+            if (!$reviews) {
+                return response()->json(['result' => '0', 'message' => 'Review not found'], 404);
+            }
+            $reviews->update([
+                'ratings'=>$rating,
+                'feedback'=>$feedback
+            ]);
+            $response=[
+                'review_id'=>$reviews->id,
+                'user_id'=>$reviews->user_id,
+                'reviewer_id'=>$reviews->reviewer_id,
+                'rating'=>$reviews->ratings,
+                'feedback'=>$reviews->feedback
+            ];
+            return response()->json(['result'=>'1','data'=>$response,'message'=>'all reviews']);
+        }
+        #3 View all reviews by auth user
+        if($user_id && $reviewer_id){
+            $reviews = Review::with('reviewer')
+            ->where('user_id',$user_id)
+            ->where('reviewer_id', $reviewer_id)->get();
+            $response=[];
+            foreach($reviews as $review){
+                    $response[]=[
+                        'review_id'=>$review->id,
+                        'user_id'=>$review->user_id,
+                        'reviewer_id'=>$review->reviewer_id,
+                        'name'=>$review->reviewer->name,
+                        'ratings'=>$review->ratings,
+                        'feedback'=>$review->feedback
+                    ];
+            }
+            return response()->json(['result'=>'1','data'=>$response,'message'=>'all reviews']);
+        }
+        #4view all reviews of the second user
+        if($reviewer_id){
+            $reviews = Review::with('reviewer')
+            ->where('reviewer_id', $reviewer_id)->get();
+            $response=[];
+            foreach($reviews as $review){
+                    $response[]=[
+                        'review_id'=>$review->id,
+                        'user_id'=>$review->user_id,
+                        'reviewer_id'=>$review->reviewer_id,
+                        'name'=>$review->reviewer->name,
+                        'ratings'=>$review->ratings,
+                        'feedback'=>$review->feedback
+                    ];
+            }
+            return response()->json(['result'=>'1','data'=>$response,'message'=>'all reviews']);
+        }
+        #5Delete reviews
+        if($review_id){
+            $review=Review::findorFail($review_id)->delete();
+            return response()->json(['result'=>'1','data'=>[],'message'=>'review deleted']);
+        }
+    }
+    #25
+    public function deleteaccount(Request $request){
+        $user_id=$request->user_id;
+        $user=User::findorFail($user_id)->delete();
+        return response()->json(['result'=>'0','data'=>[],'message'=>'user deleted']);
     }
 }
